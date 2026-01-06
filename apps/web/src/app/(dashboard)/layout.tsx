@@ -66,16 +66,56 @@ const secondaryNavigation = [
 
 // Account balance component
 function AccountBalance({ isCollapsed }: { isCollapsed: boolean }) {
-  const balance = 25000;
-  const pnl = 2345.67;
-  const pnlPercent = ((pnl / (balance - pnl)) * 100).toFixed(2);
+  const [accountData, setAccountData] = useState<{
+    balance: number;
+    startingBalance: number;
+  } | null>(null);
+
+  useEffect(() => {
+    // Fetch user's accounts to get real balance
+    const fetchAccounts = async () => {
+      try {
+        const response = await fetch('/api/accounts', {
+          credentials: 'include',
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.accounts && data.accounts.length > 0) {
+            // Sum up all account balances or use the first active one
+            const activeAccount = data.accounts.find((a: { status: string }) => 
+              a.status === 'funded' || a.status === 'evaluation'
+            ) || data.accounts[0];
+            setAccountData({
+              balance: parseFloat(activeAccount.currentBalance) || 0,
+              startingBalance: parseFloat(activeAccount.startingBalance) || 0,
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch accounts:', error);
+      }
+    };
+    fetchAccounts();
+  }, []);
+
+  const balance = accountData?.balance ?? 0;
+  const startingBalance = accountData?.startingBalance ?? 0;
+  const pnl = balance - startingBalance;
+  const pnlPercent = startingBalance > 0 ? ((pnl / startingBalance) * 100).toFixed(2) : "0.00";
+  const isPositive = pnl >= 0;
 
   if (isCollapsed) {
     return (
       <div className="p-2">
-        <div className="p-2 rounded-xl bg-profit/10 flex items-center justify-center">
-          <span className="font-mono text-sm font-bold text-profit">
-            +{Number(pnlPercent).toFixed(1)}%
+        <div className={cn(
+          "p-2 rounded-xl flex items-center justify-center",
+          isPositive ? "bg-profit/10" : "bg-loss/10"
+        )}>
+          <span className={cn(
+            "font-mono text-sm font-bold",
+            isPositive ? "text-profit" : "text-loss"
+          )}>
+            {isPositive ? "+" : ""}{pnlPercent}%
           </span>
         </div>
       </div>
@@ -94,14 +134,20 @@ function AccountBalance({ isCollapsed }: { isCollapsed: boolean }) {
           </Badge>
         </div>
         <p className="text-2xl font-bold font-mono mb-1">
-          ${balance.toLocaleString()}
+          ${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </p>
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-profit">
-            +${pnl.toLocaleString()}
+          <span className={cn(
+            "text-sm font-semibold",
+            isPositive ? "text-profit" : "text-loss"
+          )}>
+            {isPositive ? "+" : ""}${Math.abs(pnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
-          <span className="text-xs text-profit bg-profit/10 px-1.5 py-0.5 rounded">
-            +{pnlPercent}%
+          <span className={cn(
+            "text-xs px-1.5 py-0.5 rounded",
+            isPositive ? "text-profit bg-profit/10" : "text-loss bg-loss/10"
+          )}>
+            {isPositive ? "+" : ""}{pnlPercent}%
           </span>
         </div>
       </div>
