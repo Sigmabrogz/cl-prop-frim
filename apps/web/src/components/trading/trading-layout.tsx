@@ -7,7 +7,7 @@ import {
   Separator as PanelResizeHandle,
 } from "react-resizable-panels";
 import { cn } from "@/lib/utils";
-import { GripVertical, GripHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
+import { GripVertical, GripHorizontal, ChevronLeft, ChevronRight, BarChart3, ClipboardList, Briefcase, Eye } from "lucide-react";
 import { useSidebar } from "@/app/(dashboard)/layout";
 
 interface TradingLayoutProps {
@@ -245,10 +245,10 @@ export function MobileTradingLayout({
       {/* Bottom Navigation */}
       <div className="shrink-0 flex border-t border-border bg-card safe-area-bottom">
         {[
-          { id: "chart", label: "Chart", icon: "📊" },
-          { id: "order", label: "Order", icon: "📋" },
-          { id: "positions", label: "Positions", icon: "💼" },
-          { id: "watchlist", label: "Watch", icon: "👁" },
+          { id: "chart", label: "Chart", Icon: BarChart3 },
+          { id: "order", label: "Order", Icon: ClipboardList },
+          { id: "positions", label: "Positions", Icon: Briefcase },
+          { id: "watchlist", label: "Watch", Icon: Eye },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -260,7 +260,7 @@ export function MobileTradingLayout({
                 : "text-muted-foreground"
             )}
           >
-            <span className="text-lg">{tab.icon}</span>
+            <tab.Icon className="w-5 h-5" />
             <span>{tab.label}</span>
           </button>
         ))}
