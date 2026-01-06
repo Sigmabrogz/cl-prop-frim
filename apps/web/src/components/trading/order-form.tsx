@@ -52,6 +52,7 @@ export function OrderForm({
   const [executionTime, setExecutionTime] = useState<number | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const formRef = useRef<HTMLDivElement>(null);
 
@@ -73,6 +74,22 @@ export function OrderForm({
   const slPrice = parseFloat(stopLoss) || 0;
   const tpPnl = tpPrice ? (side === "LONG" ? tpPrice - currentPrice : currentPrice - tpPrice) * qty : 0;
   const slPnl = slPrice ? (side === "LONG" ? slPrice - currentPrice : currentPrice - slPrice) * qty : 0;
+
+  // Fee calculations (matching backend: 0.05% = 5 bps)
+  const FEE_RATE = 0.0005;
+  const entryFee = positionValue * FEE_RATE;
+  const exitFeeEstimate = positionValue * FEE_RATE; // Estimate at same price
+  const totalFees = entryFee + exitFeeEstimate;
+  const totalCost = marginRequired + entryFee;
+
+  // Liquidation price calculation
+  const MAINTENANCE_MARGIN_PCT = 0.005; // 0.5%
+  const liquidationPrice = side === "LONG"
+    ? currentPrice * (1 - (1 / leverage) + MAINTENANCE_MARGIN_PCT)
+    : currentPrice * (1 + (1 / leverage) - MAINTENANCE_MARGIN_PCT);
+  const liquidationDistance = side === "LONG"
+    ? ((currentPrice - liquidationPrice) / currentPrice) * 100
+    : ((liquidationPrice - currentPrice) / currentPrice) * 100;
 
   // Handle prefill from order book clicks
   useEffect(() => {
@@ -104,7 +121,7 @@ export function OrderForm({
         if (lastOrderResponse.executionTime) {
           setExecutionTime(lastOrderResponse.executionTime);
         }
-        // Reset status after animation
+        // Reset success status after animation
         setTimeout(() => {
           setOrderStatus("idle");
           setExecutionTime(null);
@@ -112,21 +129,33 @@ export function OrderForm({
       } else if (lastOrderResponse.error) {
         setOrderStatus("error");
         setErrorMessage(lastOrderResponse.error);
-        // Reset status after animation
-        setTimeout(() => {
-          setOrderStatus("idle");
-          setErrorMessage(null);
-        }, 3000);
+        // Error stays visible until user dismisses it
       }
     }
   }, [lastOrderResponse]);
 
+  // Dismiss error message
+  const dismissError = useCallback(() => {
+    setOrderStatus("idle");
+    setErrorMessage(null);
+  }, []);
+
+  // Open confirmation modal
   const handleSubmit = useCallback(() => {
     if (!quantity || !accountId || orderStatus === "submitting") return;
 
     const qty = parseFloat(quantity);
     if (isNaN(qty) || qty <= 0) return;
 
+    setShowConfirmModal(true);
+  }, [quantity, accountId, orderStatus]);
+
+  // Actually execute the order
+  const executeOrder = useCallback(() => {
+    const qty = parseFloat(quantity);
+    if (isNaN(qty) || qty <= 0) return;
+
+    setShowConfirmModal(false);
     setOrderStatus("submitting");
     setErrorMessage(null);
 
@@ -136,6 +165,7 @@ export function OrderForm({
       side,
       type: orderType,
       quantity: qty,
+      leverage,
       price: orderType === "LIMIT" ? parseFloat(limitPrice) : undefined,
       takeProfit: takeProfit ? parseFloat(takeProfit) : undefined,
       stopLoss: stopLoss ? parseFloat(stopLoss) : undefined,
@@ -153,6 +183,7 @@ export function OrderForm({
     side,
     orderType,
     quantity,
+    leverage,
     limitPrice,
     takeProfit,
     stopLoss,
@@ -180,9 +211,11 @@ export function OrderForm({
       )}
     >
       {/* Side selector - Professional text buttons */}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2" role="group" aria-label="Trade direction">
         <button
           onClick={() => handleSideChange("LONG")}
+          aria-pressed={side === "LONG"}
+          aria-label="Long position - buy"
           className={cn(
             "relative h-12 rounded-lg font-semibold text-sm transition-all duration-200",
             "flex items-center justify-center gap-2 border",
@@ -191,11 +224,13 @@ export function OrderForm({
               : "bg-background-secondary text-muted-foreground hover:text-profit hover:bg-profit/5 border-border hover:border-profit/30"
           )}
         >
-          <TrendingUp className="h-4 w-4" />
+          <TrendingUp className="h-4 w-4" aria-hidden="true" />
           <span>LONG</span>
         </button>
         <button
           onClick={() => handleSideChange("SHORT")}
+          aria-pressed={side === "SHORT"}
+          aria-label="Short position - sell"
           className={cn(
             "relative h-12 rounded-lg font-semibold text-sm transition-all duration-200",
             "flex items-center justify-center gap-2 border",
@@ -204,16 +239,19 @@ export function OrderForm({
               : "bg-background-secondary text-muted-foreground hover:text-loss hover:bg-loss/5 border-border hover:border-loss/30"
           )}
         >
-          <TrendingDown className="h-4 w-4" />
+          <TrendingDown className="h-4 w-4" aria-hidden="true" />
           <span>SHORT</span>
         </button>
       </div>
 
       {/* Order type tabs */}
-      <div className="flex p-1 bg-background-tertiary rounded-xl">
+      <div className="flex p-1 bg-background-tertiary rounded-xl" role="tablist" aria-label="Order type">
         {(["MARKET", "LIMIT"] as const).map((type) => (
           <button
             key={type}
+            role="tab"
+            aria-selected={orderType === type}
+            aria-controls={`${type.toLowerCase()}-order-panel`}
             onClick={() => setOrderType(type)}
             className={cn(
               "flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200",
@@ -251,19 +289,21 @@ export function OrderForm({
 
       {/* Limit price */}
       {orderType === "LIMIT" && (
-        <div className="space-y-2">
-          <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+        <div className="space-y-2" id="limit-order-panel" role="tabpanel" aria-labelledby="limit-tab">
+          <Label htmlFor="limit-price-input" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             Limit Price
           </Label>
           <div className="relative">
             <Input
+              id="limit-price-input"
               type="number"
               placeholder="0.00"
               value={limitPrice}
               onChange={(e) => setLimitPrice(e.target.value)}
               className="font-mono pr-12 h-11"
+              aria-describedby="limit-price-unit"
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+            <span id="limit-price-unit" className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
               USD
             </span>
           </div>
@@ -271,33 +311,36 @@ export function OrderForm({
       )}
 
       {/* Quantity */}
-      <div className="space-y-2">
+      <div className="space-y-2" id="market-order-panel" role="tabpanel" aria-labelledby="market-tab">
         <div className="flex justify-between items-center">
-          <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <Label htmlFor="quantity-input" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             Quantity
           </Label>
-          <span className="text-xs text-muted-foreground">
+          <span id="quantity-max" className="text-xs text-muted-foreground">
             Max: <span className="font-mono text-foreground">{formatNumber((availableBalance * leverage) / currentPrice, 4)}</span>
           </span>
         </div>
         <div className="relative">
           <Input
+            id="quantity-input"
             type="number"
             placeholder="0.00"
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
             className="font-mono pr-16 h-11"
+            aria-describedby="quantity-max quantity-unit"
           />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">
+          <span id="quantity-unit" className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">
             {symbol.replace("USDT", "")}
           </span>
         </div>
         {/* Quick quantity buttons */}
-        <div className="grid grid-cols-4 gap-1.5">
+        <div className="grid grid-cols-4 gap-1.5" role="group" aria-label="Quick quantity selection">
           {[25, 50, 75, 100].map((pct) => (
             <button
               key={pct}
               onClick={() => setQuickQuantity(pct)}
+              aria-label={`Set quantity to ${pct}% of maximum`}
               className={cn(
                 "py-2 text-xs font-semibold rounded-lg transition-all duration-150",
                 "bg-background-tertiary hover:bg-background-hover border border-border/50",
@@ -313,11 +356,11 @@ export function OrderForm({
       {/* Leverage */}
       <div className="space-y-2">
         <div className="flex justify-between items-center">
-          <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-            <Percent className="h-3.5 w-3.5" />
+          <Label htmlFor="leverage-slider" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+            <Percent className="h-3.5 w-3.5" aria-hidden="true" />
             Leverage
           </Label>
-          <span className={cn(
+          <span id="leverage-value" className={cn(
             "text-sm font-bold px-2.5 py-1 rounded-lg font-mono",
             leverage >= maxLeverage * 0.8 ? "bg-loss/10 text-loss" : "bg-primary/10 text-primary"
           )}>
@@ -326,11 +369,17 @@ export function OrderForm({
         </div>
         <div className="relative py-2">
           <input
+            id="leverage-slider"
             type="range"
             min={1}
             max={maxLeverage}
             value={leverage}
             onChange={(e) => setLeverage(parseInt(e.target.value))}
+            aria-label={`Leverage: ${leverage}x`}
+            aria-valuemin={1}
+            aria-valuemax={maxLeverage}
+            aria-valuenow={leverage}
+            aria-valuetext={`${leverage}x leverage`}
             className={cn(
               "w-full h-2 rounded-full appearance-none cursor-pointer",
               "bg-gradient-to-r from-profit via-warning to-loss",
@@ -348,11 +397,13 @@ export function OrderForm({
             )}
           />
         </div>
-        <div className="flex justify-between gap-1">
+        <div className="flex justify-between gap-1" role="group" aria-label="Leverage presets">
           {leveragePresets.map((preset) => (
             <button
               key={preset}
               onClick={() => setLeverage(preset)}
+              aria-label={`Set leverage to ${preset}x`}
+              aria-pressed={leverage === preset}
               className={cn(
                 "flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all duration-150",
                 leverage === preset
@@ -369,6 +420,8 @@ export function OrderForm({
       {/* TP/SL Toggle */}
       <button
         onClick={() => setShowAdvanced(!showAdvanced)}
+        aria-expanded={showAdvanced}
+        aria-controls="tpsl-inputs"
         className={cn(
           "w-full py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
           "flex items-center justify-center gap-2",
@@ -377,46 +430,50 @@ export function OrderForm({
             : "text-muted-foreground hover:text-foreground hover:bg-background-tertiary"
         )}
       >
-        <Target className="h-4 w-4" />
+        <Target className="h-4 w-4" aria-hidden="true" />
         {showAdvanced ? "Hide" : "Add"} Take Profit / Stop Loss
       </button>
 
       {/* TP/SL Inputs */}
       {showAdvanced && (
-        <div className="space-y-3 p-3 rounded-xl bg-background-tertiary/50 border border-border/50 animate-slide-down">
+        <div id="tpsl-inputs" className="space-y-3 p-3 rounded-xl bg-background-tertiary/50 border border-border/50 animate-slide-down">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-profit flex items-center gap-1">
-                <Target className="h-3 w-3" />
+              <Label htmlFor="take-profit-input" className="text-xs font-semibold text-profit flex items-center gap-1">
+                <Target className="h-3 w-3" aria-hidden="true" />
                 Take Profit
               </Label>
               <Input
+                id="take-profit-input"
                 type="number"
                 placeholder="Price"
                 value={takeProfit}
                 onChange={(e) => setTakeProfit(e.target.value)}
                 className="font-mono text-sm h-10"
+                aria-describedby={tpPrice > 0 && qty > 0 ? "tp-pnl" : undefined}
               />
               {tpPrice > 0 && qty > 0 && (
-                <p className="text-xs text-profit font-medium">
+                <p id="tp-pnl" className="text-xs text-profit font-medium">
                   +{formatCurrency(tpPnl)} ({((tpPnl / marginRequired) * 100).toFixed(1)}%)
                 </p>
               )}
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-loss flex items-center gap-1">
-                <ShieldAlert className="h-3 w-3" />
+              <Label htmlFor="stop-loss-input" className="text-xs font-semibold text-loss flex items-center gap-1">
+                <ShieldAlert className="h-3 w-3" aria-hidden="true" />
                 Stop Loss
               </Label>
               <Input
+                id="stop-loss-input"
                 type="number"
                 placeholder="Price"
                 value={stopLoss}
                 onChange={(e) => setStopLoss(e.target.value)}
                 className="font-mono text-sm h-10"
+                aria-describedby={slPrice > 0 && qty > 0 ? "sl-pnl" : undefined}
               />
               {slPrice > 0 && qty > 0 && (
-                <p className="text-xs text-loss font-medium">
+                <p id="sl-pnl" className="text-xs text-loss font-medium">
                   {formatCurrency(slPnl)} ({((slPnl / marginRequired) * 100).toFixed(1)}%)
                 </p>
               )}
@@ -427,19 +484,61 @@ export function OrderForm({
 
       {/* Order summary */}
       <div className="p-3 rounded-xl bg-background-secondary border border-border/50 space-y-2">
+        {/* Position details */}
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">Position Value</span>
+          <span className="font-mono">{formatCurrency(positionValue)}</span>
+        </div>
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground flex items-center gap-1.5">
             <Calculator className="h-3.5 w-3.5" />
             Margin Required
           </span>
-          <span className={cn("font-mono font-semibold", !canAfford && qty > 0 && "text-loss")}>
-            {formatCurrency(marginRequired)}
-          </span>
+          <span className="font-mono">{formatCurrency(marginRequired)}</span>
         </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Position Value</span>
-          <span className="font-mono">{formatCurrency(positionValue)}</span>
-        </div>
+
+        {/* Fee breakdown */}
+        {qty > 0 && (
+          <>
+            <div className="border-t border-border/30 my-2" />
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Entry Fee (0.05%)</span>
+              <span className="font-mono text-warning">{formatCurrency(entryFee)}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Exit Fee (est.)</span>
+              <span className="font-mono text-muted-foreground">{formatCurrency(exitFeeEstimate)}</span>
+            </div>
+            <div className="flex justify-between text-sm font-medium">
+              <span className="text-muted-foreground">Total Cost</span>
+              <span className={cn("font-mono", totalCost > availableBalance && "text-loss")}>
+                {formatCurrency(totalCost)}
+              </span>
+            </div>
+          </>
+        )}
+
+        {/* Liquidation price */}
+        {qty > 0 && (
+          <>
+            <div className="border-t border-border/30 my-2" />
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground flex items-center gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5 text-loss" />
+                Liq. Price
+              </span>
+              <div className="text-right">
+                <span className="font-mono text-loss">{formatCurrency(liquidationPrice, { decimals: 2 })}</span>
+                <span className="text-xs text-muted-foreground ml-1.5">
+                  ({liquidationDistance.toFixed(1)}% away)
+                </span>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Balance info */}
+        <div className="border-t border-border/30 my-2" />
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Available</span>
           <span className="font-mono text-foreground">{formatCurrency(availableBalance)}</span>
@@ -463,9 +562,16 @@ export function OrderForm({
 
       {/* Error message */}
       {errorMessage && orderStatus === "error" && (
-        <div className="flex items-start gap-2 p-3 rounded-xl bg-loss/10 border border-loss/20 text-loss text-sm animate-shake">
-          <X className="h-4 w-4 shrink-0 mt-0.5" />
-          <span>{errorMessage}</span>
+        <div className="flex items-start gap-2 p-3 rounded-xl bg-loss/10 border border-loss/20 text-loss text-sm" role="alert">
+          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
+          <span className="flex-1">{errorMessage}</span>
+          <button
+            onClick={dismissError}
+            className="p-0.5 hover:bg-loss/20 rounded transition-colors shrink-0"
+            aria-label="Dismiss error"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
         </div>
       )}
 
@@ -520,6 +626,162 @@ export function OrderForm({
         <kbd className="px-1 py-0.5 rounded bg-background border border-border font-mono">S</kbd> for Short,{" "}
         <kbd className="px-1 py-0.5 rounded bg-background border border-border font-mono">Enter</kbd> to submit
       </p>
+
+      {/* Order Confirmation Modal */}
+      {showConfirmModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-order-title"
+          aria-describedby="confirm-order-warning"
+        >
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowConfirmModal(false)}
+            aria-hidden="true"
+          />
+
+          {/* Modal */}
+          <div className="relative w-full max-w-sm mx-4 p-5 rounded-2xl bg-background border border-border shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  "w-10 h-10 rounded-xl flex items-center justify-center",
+                  side === "LONG" ? "bg-profit/10" : "bg-loss/10"
+                )} aria-hidden="true">
+                  {side === "LONG" ? (
+                    <TrendingUp className="h-5 w-5 text-profit" />
+                  ) : (
+                    <TrendingDown className="h-5 w-5 text-loss" />
+                  )}
+                </div>
+                <div>
+                  <h3 id="confirm-order-title" className="font-semibold">Confirm Order</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {symbol.replace("USDT", "/USD")}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                className="p-2 hover:bg-background-hover rounded-lg transition-colors"
+                aria-label="Close dialog"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+
+            {/* Order Details */}
+            <div className="space-y-3 p-3 rounded-xl bg-background-secondary border border-border/50 mb-4">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Side</span>
+                <span className={cn("font-semibold", side === "LONG" ? "text-profit" : "text-loss")}>
+                  {side}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Type</span>
+                <span className="font-medium">{orderType}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Quantity</span>
+                <span className="font-mono">{formatNumber(qty, 6)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Entry Price</span>
+                <span className="font-mono">{formatCurrency(currentPrice)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Leverage</span>
+                <span className="font-mono">{leverage}x</span>
+              </div>
+              <div className="border-t border-border/50 pt-2 mt-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Position Value</span>
+                  <span className="font-mono">{formatCurrency(positionValue)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Margin Required</span>
+                  <span className="font-mono">{formatCurrency(marginRequired)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Entry Fee</span>
+                  <span className="font-mono text-warning">{formatCurrency(entryFee)}</span>
+                </div>
+                <div className="flex justify-between text-sm font-medium pt-1">
+                  <span className="text-muted-foreground">Total Cost</span>
+                  <span className="font-mono">{formatCurrency(totalCost)}</span>
+                </div>
+              </div>
+              {(takeProfit || stopLoss) && (
+                <div className="border-t border-border/50 pt-2 mt-2">
+                  {takeProfit && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-profit flex items-center gap-1">
+                        <Target className="h-3 w-3" /> Take Profit
+                      </span>
+                      <span className="font-mono">{formatCurrency(parseFloat(takeProfit))}</span>
+                    </div>
+                  )}
+                  {stopLoss && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-loss flex items-center gap-1">
+                        <ShieldAlert className="h-3 w-3" /> Stop Loss
+                      </span>
+                      <span className="font-mono">{formatCurrency(parseFloat(stopLoss))}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="border-t border-border/50 pt-2 mt-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3 text-loss" /> Liq. Price
+                  </span>
+                  <span className="font-mono text-loss">{formatCurrency(liquidationPrice, { decimals: 2 })}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Warning */}
+            <div id="confirm-order-warning" role="alert" className="flex items-start gap-2 p-3 rounded-lg bg-warning/10 border border-warning/20 text-warning text-xs mb-4">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
+              <span>
+                Trading involves risk. You may lose your margin. Please confirm this order is correct.
+              </span>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <button
+                className="flex-1 py-2.5 px-4 rounded-lg border border-border text-sm font-medium hover:bg-background-hover transition-colors"
+                onClick={() => setShowConfirmModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className={cn(
+                  "flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2",
+                  side === "LONG"
+                    ? "bg-profit text-white hover:bg-profit/90"
+                    : "bg-loss text-white hover:bg-loss/90"
+                )}
+                onClick={executeOrder}
+              >
+                {side === "LONG" ? (
+                  <TrendingUp className="h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <TrendingDown className="h-4 w-4" aria-hidden="true" />
+                )}
+                Confirm {side}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -190,9 +190,49 @@ export const plansApi = {
   get: (id: string) => api.get<{ plan: EvaluationPlan }>(`/api/plans/${id}`),
 };
 
+// Orders API
+export const ordersApi = {
+  list: (params?: {
+    accountId?: string;
+    symbol?: string;
+    side?: 'LONG' | 'SHORT';
+    status?: 'pending' | 'validating' | 'executing' | 'filled' | 'rejected' | 'cancelled' | 'expired';
+    page?: number;
+    limit?: number;
+  }) => {
+    const query = new URLSearchParams();
+    if (params?.accountId) query.set('accountId', params.accountId);
+    if (params?.symbol) query.set('symbol', params.symbol);
+    if (params?.side) query.set('side', params.side);
+    if (params?.status) query.set('status', params.status);
+    if (params?.page) query.set('offset', ((params.page - 1) * (params.limit || 50)).toString());
+    if (params?.limit) query.set('limit', params.limit.toString());
+    return api.get<{ orders: Order[]; pagination: Pagination }>(`/api/orders?${query}`);
+  },
+
+  history: (params?: {
+    accountId?: string;
+    symbol?: string;
+    side?: 'LONG' | 'SHORT';
+    page?: number;
+    limit?: number;
+  }) => {
+    const query = new URLSearchParams();
+    if (params?.accountId) query.set('accountId', params.accountId);
+    if (params?.symbol) query.set('symbol', params.symbol);
+    if (params?.side) query.set('side', params.side);
+    if (params?.page) query.set('offset', ((params.page - 1) * (params.limit || 50)).toString());
+    if (params?.limit) query.set('limit', params.limit.toString());
+    return api.get<{ orders: Order[]; pagination: Pagination }>(`/api/orders/history?${query}`);
+  },
+
+  get: (orderId: string) =>
+    api.get<{ order: Order }>(`/api/orders/${orderId}`),
+};
+
 // Trades API
 export const tradesApi = {
-  list: (params?: { 
+  list: (params?: {
     accountId?: string;
     symbol?: string;
     side?: 'LONG' | 'SHORT';
@@ -214,6 +254,41 @@ export const tradesApi = {
 
   get: (tradeId: string) =>
     api.get<{ trade: Trade }>(`/api/trades/${tradeId}`),
+};
+
+// Trade Events API
+export const tradeEventsApi = {
+  list: (params?: {
+    accountId?: string;
+    positionId?: string;
+    symbol?: string;
+    side?: 'LONG' | 'SHORT';
+    eventType?: string;
+    eventTypes?: string[];
+    fromDate?: string;
+    toDate?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const query = new URLSearchParams();
+    if (params?.accountId) query.set('accountId', params.accountId);
+    if (params?.positionId) query.set('positionId', params.positionId);
+    if (params?.symbol) query.set('symbol', params.symbol);
+    if (params?.side) query.set('side', params.side);
+    if (params?.eventType) query.set('eventType', params.eventType);
+    if (params?.eventTypes) query.set('eventTypes', params.eventTypes.join(','));
+    if (params?.fromDate) query.set('fromDate', params.fromDate);
+    if (params?.toDate) query.set('toDate', params.toDate);
+    if (params?.page) query.set('offset', ((params.page - 1) * (params.limit || 50)).toString());
+    if (params?.limit) query.set('limit', params.limit.toString());
+    return api.get<{ events: TradeEvent[]; pagination: Pagination }>(`/api/trade-events?${query}`);
+  },
+
+  getByPosition: (positionId: string) =>
+    api.get<{ events: TradeEvent[] }>(`/api/trade-events/position/${positionId}`),
+
+  getTypes: () =>
+    api.get<{ types: { value: string; label: string }[] }>('/api/trade-events/types'),
 };
 
 // Payouts API
@@ -290,6 +365,34 @@ export interface EvaluationPlan {
   isActive: boolean;
 }
 
+export interface Order {
+  id: string;
+  accountId: string;
+  symbol: string;
+  side: 'LONG' | 'SHORT';
+  orderType: 'MARKET' | 'LIMIT';
+  quantity: string;
+  limitPrice?: string;
+  takeProfit?: string;
+  stopLoss?: string;
+  status: 'pending' | 'validating' | 'executing' | 'filled' | 'rejected' | 'cancelled' | 'expired';
+  filledAt?: string;
+  filledPrice?: string;
+  positionId?: string;
+  rejectionReason?: string;
+  rejectedAt?: string;
+  createdAt: string;
+  expiresAt?: string;
+  clientOrderId?: string;
+}
+
+export interface Pagination {
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+}
+
 export interface Trade {
   id: string;
   accountId: string;
@@ -308,6 +411,25 @@ export interface Trade {
   fees: string;
   netPnl: string;
   holdDurationSeconds: number;
+}
+
+export interface TradeEvent {
+  id: number;
+  accountId: string;
+  positionId?: string;
+  tradeId?: string;
+  orderId?: string;
+  eventType: string;
+  symbol?: string;
+  side?: string;
+  quantity?: string;
+  price?: string;
+  details: Record<string, unknown>;
+  binancePrice?: string;
+  priceTimestamp?: string;
+  previousEventHash?: string;
+  eventHash: string;
+  createdAt: string;
 }
 
 export interface AccountStats {

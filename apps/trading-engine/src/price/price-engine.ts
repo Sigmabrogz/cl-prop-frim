@@ -3,6 +3,12 @@
 // ===========================================
 
 import { setHash, CACHE_KEYS } from '@propfirm/redis';
+import {
+  SYMBOL_SPREADS,
+  DEFAULT_SPREAD_BPS,
+  CIRCUIT_BREAKER_THRESHOLD_PCT,
+  CIRCUIT_BREAKER_RESET_MS,
+} from '../config/trading-config';
 
 // ===========================================
 // TYPES
@@ -27,30 +33,6 @@ export interface SpreadConfig {
 type PriceUpdateCallback = (symbol: string, price: PriceData) => void;
 
 // ===========================================
-// DEFAULT SPREADS (in basis points)
-// ===========================================
-
-const DEFAULT_SPREADS: Record<string, number> = {
-  BTCUSDT: 5, // 0.05%
-  ETHUSDT: 5,
-  BNBUSDT: 8,
-  SOLUSDT: 10,
-  XRPUSDT: 10,
-  ADAUSDT: 12,
-  DOGEUSDT: 15,
-  DOTUSDT: 10,
-  LINKUSDT: 10,
-  MATICUSDT: 12,
-  AVAXUSDT: 10,
-  LTCUSDT: 8,
-  UNIUSDT: 12,
-  ATOMUSDT: 10,
-  XLMUSDT: 12,
-};
-
-const DEFAULT_SPREAD_BPS = 10; // 0.1% for unknown symbols
-
-// ===========================================
 // PRICE ENGINE CLASS
 // ===========================================
 
@@ -71,8 +53,8 @@ export class PriceEngine {
   private circuitBreakerTripped: Set<string> = new Set();
 
   constructor() {
-    // Initialize default spreads
-    for (const [symbol, spread] of Object.entries(DEFAULT_SPREADS)) {
+    // Initialize spreads from config
+    for (const [symbol, spread] of Object.entries(SYMBOL_SPREADS)) {
       this.spreads.set(symbol, spread);
     }
   }
@@ -189,22 +171,22 @@ export class PriceEngine {
   }
 
   /**
-   * Circuit breaker check - reject >5% moves in 1 second
+   * Circuit breaker check - reject large moves in short time
    */
   private isCircuitBreakerTripped(symbol: string, newPrice: number): boolean {
     const previous = this.previousPrices.get(symbol);
     if (!previous) return false;
 
     const timeDiff = Date.now() - previous.timestamp;
-    if (timeDiff > 1000) {
-      // Reset circuit breaker after 1 second
+    if (timeDiff > CIRCUIT_BREAKER_RESET_MS) {
+      // Reset circuit breaker after configured time
       this.circuitBreakerTripped.delete(symbol);
       return false;
     }
 
     const priceDiff = Math.abs(newPrice - previous.price) / previous.price;
-    if (priceDiff > 0.05) {
-      // 5% move in 1 second
+    if (priceDiff > CIRCUIT_BREAKER_THRESHOLD_PCT) {
+      // Large move detected
       this.circuitBreakerTripped.add(symbol);
       return true;
     }

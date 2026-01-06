@@ -73,3 +73,35 @@ export function getPnLBgColor(pnl: number): string {
   return "bg-muted text-muted-foreground";
 }
 
+/**
+ * Format duration from a date string to now (e.g., "2h 30m", "5d 12h")
+ * Used for active position duration display
+ */
+export function formatDurationFromDate(openedAt: string): string {
+  const opened = new Date(openedAt);
+  const now = new Date();
+  const diffMs = now.getTime() - opened.getTime();
+
+  const seconds = Math.floor(diffMs / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (days > 0) return `${days}d ${hours % 24}h`;
+  if (hours > 0) return `${hours}h ${minutes % 60}m`;
+  if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+  return `${seconds}s`;
+}
+
+/**
+ * Format duration from seconds (e.g., "45s", "2m 30s", "1h 15m")
+ * Used for completed trade duration display
+ */
+export function formatDurationSeconds(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+  const hours = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  return `${hours}h ${mins}m`;
+}
+

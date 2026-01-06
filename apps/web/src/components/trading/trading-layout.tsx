@@ -8,6 +8,7 @@ import {
 } from "react-resizable-panels";
 import { cn } from "@/lib/utils";
 import { GripVertical, GripHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
+import { useSidebar } from "@/app/(dashboard)/layout";
 
 interface TradingLayoutProps {
   watchlist: ReactNode;
@@ -64,6 +65,7 @@ export function TradingLayout({
 }: TradingLayoutProps) {
   const [layout, setLayout] = useState<LayoutState>(defaultLayout);
   const [isClient, setIsClient] = useState(false);
+  const { isCollapsed: sidebarCollapsed } = useSidebar();
 
   // Load layout on mount
   useEffect(() => {
@@ -82,7 +84,10 @@ export function TradingLayout({
   // Don't render panels until client-side to avoid hydration mismatch
   if (!isClient) {
     return (
-      <div className="fixed inset-0 top-14 lg:left-64 flex flex-col bg-background z-30">
+      <div className={cn(
+        "fixed inset-0 top-14 flex flex-col bg-background z-30 transition-all duration-300",
+        sidebarCollapsed ? "lg:left-[72px]" : "lg:left-64"
+      )}>
         <div className="h-14 shrink-0 bg-background-secondary border-b border-border" />
         <div className="flex-1 flex items-center justify-center">
           <div className="animate-pulse text-muted-foreground">Loading layout...</div>
@@ -92,7 +97,10 @@ export function TradingLayout({
   }
 
   return (
-    <div className="fixed inset-0 top-14 lg:left-64 flex flex-col bg-background overflow-hidden z-30">
+    <div className={cn(
+      "fixed inset-0 top-14 flex flex-col bg-background overflow-hidden z-30 transition-all duration-300",
+      sidebarCollapsed ? "lg:left-[72px]" : "lg:left-64"
+    )}>
       {/* Top Bar - Sticky */}
       <div className="shrink-0 z-40">
         {topBar}
@@ -147,8 +155,8 @@ export function TradingLayout({
           </div>
         </div>
 
-        {/* Bottom Panel: Positions */}
-        <div className="h-40 lg:h-48 shrink-0 bg-card border-t border-border overflow-auto">
+        {/* Bottom Panel: Positions - Resizable */}
+        <div className="shrink-0 bg-card border-t border-border overflow-hidden">
           {positions}
         </div>
       </div>

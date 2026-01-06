@@ -30,6 +30,7 @@ export interface OrderRequest {
   side: 'LONG' | 'SHORT';
   type: 'MARKET' | 'LIMIT';
   quantity: number;
+  leverage?: number; // User's selected leverage (1-maxLeverage)
   limitPrice?: number;
   takeProfit?: number;
   stopLoss?: number;
@@ -63,15 +64,47 @@ interface PersistTask {
 
 const persistRetryQueue: PersistTask[] = [];
 const MAX_RETRIES = 3;
+const MAX_QUEUE_SIZE = 100; // Prevent unbounded memory growth
+let consecutiveFailures = 0;
+const CIRCUIT_BREAKER_THRESHOLD = 10; // Trip after 10 consecutive failures
+
+// Store interval reference for cleanup
+let retryQueueInterval: NodeJS.Timeout | null = null;
 
 // Process retry queue every 10 seconds
-setInterval(() => processRetryQueue(), 10000);
+retryQueueInterval = setInterval(() => processRetryQueue(), 10000);
 
 async function processRetryQueue(): Promise<void> {
-  if (persistRetryQueue.length === 0) return;
-  
+  if (persistRetryQueue.length === 0) {
+    // Reset circuit breaker on empty queue
+    consecutiveFailures = 0;
+    return;
+  }
+
+  // Circuit breaker: if too many failures, wait longer
+  if (consecutiveFailures >= CIRCUIT_BREAKER_THRESHOLD) {
+    console.warn(`[OrderExecutor] Circuit breaker active: ${consecutiveFailures} consecutive failures, queue size: ${persistRetryQueue.length}`);
+    // Only process 1 item to test if DB is back
+    const testTask = persistRetryQueue[0];
+    try {
+      if (testTask.type === 'ORDER') {
+        await persistOrderToDb(testTask.data as PersistOrderData);
+      } else if (testTask.type === 'POSITION') {
+        await persistPositionToDb(testTask.data as PersistPositionData);
+      }
+      // Success - reset circuit breaker
+      persistRetryQueue.shift();
+      consecutiveFailures = 0;
+      console.log('[OrderExecutor] Circuit breaker reset - DB connection restored');
+    } catch {
+      // Still failing - keep circuit breaker active
+    }
+    return;
+  }
+
   const tasks = persistRetryQueue.splice(0, 10); // Process up to 10 at a time
-  
+  let failedThisBatch = 0;
+
   for (const task of tasks) {
     try {
       if (task.type === 'ORDER') {
@@ -79,14 +112,28 @@ async function processRetryQueue(): Promise<void> {
       } else if (task.type === 'POSITION') {
         await persistPositionToDb(task.data as PersistPositionData);
       }
+      consecutiveFailures = 0; // Reset on success
     } catch (error) {
+      failedThisBatch++;
+      consecutiveFailures++;
+
       if (task.retries < MAX_RETRIES) {
         task.retries++;
-        persistRetryQueue.push(task);
+        // Only re-queue if under max size
+        if (persistRetryQueue.length < MAX_QUEUE_SIZE) {
+          persistRetryQueue.push(task);
+        } else {
+          console.error(`[OrderExecutor] CRITICAL: Dropping persist task - queue at max size (${MAX_QUEUE_SIZE})`);
+        }
       } else {
         console.error(`[OrderExecutor] Giving up on persist task after ${MAX_RETRIES} retries:`, error);
       }
     }
+  }
+
+  // Alert if queue is getting large
+  if (persistRetryQueue.length > MAX_QUEUE_SIZE * 0.8) {
+    console.warn(`[OrderExecutor] WARNING: Retry queue at ${persistRetryQueue.length}/${MAX_QUEUE_SIZE} capacity`);
   }
 }
 
@@ -182,7 +229,8 @@ async function executeWithLock(
     {
       btcEthMaxLeverage: account.btcEthMaxLeverage,
       altcoinMaxLeverage: account.altcoinMaxLeverage,
-    }
+    },
+    order.leverage // Pass user's selected leverage
   );
   
   // 5. Check available margin
@@ -333,19 +381,23 @@ function persistOrderAsync(
     }),
   ]).catch(error => {
     console.error('[OrderExecutor] Async persist failed:', error);
-    // Add to retry queue
-    persistRetryQueue.push({
-      type: 'ORDER',
-      data: { orderId, order, position, executionPrice, now },
-      retries: 0,
-      createdAt: Date.now(),
-    });
-    persistRetryQueue.push({
-      type: 'POSITION',
-      data: { position, binancePrice: order.binancePrice || executionPrice },
-      retries: 0,
-      createdAt: Date.now(),
-    });
+    // Add to retry queue only if under max size
+    if (persistRetryQueue.length < MAX_QUEUE_SIZE - 1) {
+      persistRetryQueue.push({
+        type: 'ORDER',
+        data: { orderId, order, position, executionPrice, now },
+        retries: 0,
+        createdAt: Date.now(),
+      });
+      persistRetryQueue.push({
+        type: 'POSITION',
+        data: { position, binancePrice: order.binancePrice || executionPrice },
+        retries: 0,
+        createdAt: Date.now(),
+      });
+    } else {
+      console.error(`[OrderExecutor] CRITICAL: Cannot queue persist - queue full (${persistRetryQueue.length}/${MAX_QUEUE_SIZE})`);
+    }
   });
 }
 
@@ -420,7 +472,41 @@ export function updateAccountCache(
 /**
  * Get retry queue stats
  */
-export function getRetryQueueStats(): { pending: number } {
-  return { pending: persistRetryQueue.length };
+export function getRetryQueueStats(): {
+  pending: number;
+  maxSize: number;
+  circuitBreakerActive: boolean;
+  consecutiveFailures: number;
+} {
+  return {
+    pending: persistRetryQueue.length,
+    maxSize: MAX_QUEUE_SIZE,
+    circuitBreakerActive: consecutiveFailures >= CIRCUIT_BREAKER_THRESHOLD,
+    consecutiveFailures,
+  };
+}
+
+/**
+ * Shutdown the order executor (clear intervals, flush queue)
+ */
+export async function shutdownOrderExecutor(): Promise<void> {
+  // Clear the retry queue interval
+  if (retryQueueInterval) {
+    clearInterval(retryQueueInterval);
+    retryQueueInterval = null;
+  }
+
+  // Try to process remaining items in queue
+  if (persistRetryQueue.length > 0) {
+    console.log(`[OrderExecutor] Shutting down with ${persistRetryQueue.length} items in retry queue...`);
+    // Try one final flush
+    try {
+      await processRetryQueue();
+    } catch (error) {
+      console.error('[OrderExecutor] Final flush failed:', error);
+    }
+  }
+
+  console.log('[OrderExecutor] Shutdown complete');
 }
 

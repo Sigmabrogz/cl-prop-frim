@@ -125,6 +125,9 @@ export function OrderBook({ symbol, levels = 12, compact = false, onPriceClick, 
         <div className="relative">
           <button
             onClick={() => setShowAggDropdown(!showAggDropdown)}
+            aria-expanded={showAggDropdown}
+            aria-haspopup="listbox"
+            aria-label={`Aggregation: ${aggregation}`}
             className={cn(
               "flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px]",
               "bg-background hover:bg-background-hover border border-border/50",
@@ -136,7 +139,7 @@ export function OrderBook({ symbol, levels = 12, compact = false, onPriceClick, 
             <ChevronDown className={cn(
               "h-2.5 w-2.5 text-muted-foreground transition-transform",
               showAggDropdown && "rotate-180"
-            )} />
+            )} aria-hidden="true" />
           </button>
 
           {showAggDropdown && (
@@ -144,11 +147,18 @@ export function OrderBook({ symbol, levels = 12, compact = false, onPriceClick, 
               <div
                 className="fixed inset-0 z-40"
                 onClick={() => setShowAggDropdown(false)}
+                aria-hidden="true"
               />
-              <div className="absolute right-0 top-full mt-1 z-50 bg-card border border-border rounded-lg shadow-xl overflow-hidden animate-scale-in">
+              <div
+                className="absolute right-0 top-full mt-1 z-50 bg-card border border-border rounded-lg shadow-xl overflow-hidden animate-scale-in"
+                role="listbox"
+                aria-label="Select aggregation level"
+              >
                 {AGGREGATION_OPTIONS.map((opt) => (
                   <button
                     key={opt}
+                    role="option"
+                    aria-selected={aggregation === opt}
                     onClick={() => {
                       setAggregation(opt);
                       setShowAggDropdown(false);
@@ -202,9 +212,10 @@ export function OrderBook({ symbol, levels = 12, compact = false, onPriceClick, 
         </div>
 
         {/* Bid/Ask prices - clean horizontal layout */}
-        <div className="grid grid-cols-2 gap-1.5">
+        <div className="grid grid-cols-2 gap-1.5" role="group" aria-label="Best bid and ask prices">
           <button
             onClick={() => handlePriceClick(price?.bid || 0)}
+            aria-label={`Set limit price to bid: ${formatCurrency(price?.bid || 0, { decimals: priceDecimals })}`}
             className="flex items-center justify-between px-2 py-1.5 rounded border border-profit/20 bg-profit/5 hover:bg-profit/10 transition-colors"
           >
             <span className="text-[9px] text-muted-foreground font-sans uppercase">Bid</span>
@@ -214,6 +225,7 @@ export function OrderBook({ symbol, levels = 12, compact = false, onPriceClick, 
           </button>
           <button
             onClick={() => handlePriceClick(price?.ask || 0)}
+            aria-label={`Set limit price to ask: ${formatCurrency(price?.ask || 0, { decimals: priceDecimals })}`}
             className="flex items-center justify-between px-2 py-1.5 rounded border border-loss/20 bg-loss/5 hover:bg-loss/10 transition-colors"
           >
             <span className="text-[9px] text-muted-foreground font-sans uppercase">Ask</span>
@@ -299,6 +311,7 @@ function OrderBookRow({
       {/* Price - clickable */}
       <button
         onClick={() => onPriceClick?.(price)}
+        aria-label={`Set limit price to ${formatCurrency(price, { decimals: priceDecimals })}`}
         className={cn(
           "relative text-left font-medium transition-colors truncate",
           type === "ask"
@@ -313,6 +326,7 @@ function OrderBookRow({
       {/* Size - clickable */}
       <button
         onClick={() => onSizeClick?.(size)}
+        aria-label={`Set quantity to ${formatNumber(size, 4)}`}
         className="relative text-right text-foreground/80 hover:text-foreground transition-colors hover:underline underline-offset-2 truncate"
       >
         {formatNumber(size, 4)}
@@ -333,9 +347,10 @@ export function OrderBookCompact({ symbol, onPriceClick }: { symbol: string; onP
   if (!price) return null;
 
   return (
-    <div className="flex items-center justify-between px-4 py-2 bg-background-secondary rounded-lg">
+    <div className="flex items-center justify-between px-4 py-2 bg-background-secondary rounded-lg" role="group" aria-label="Best prices">
       <button
         onClick={() => onPriceClick?.(price.bid)}
+        aria-label={`Set limit price to bid: ${formatCurrency(price.bid, { decimals: 2 })}`}
         className="flex flex-col items-start"
       >
         <span className="text-[10px] text-muted-foreground">Bid</span>
@@ -343,16 +358,17 @@ export function OrderBookCompact({ symbol, onPriceClick }: { symbol: string; onP
           {formatCurrency(price.bid, { decimals: 2 })}
         </span>
       </button>
-      
-      <div className="flex flex-col items-center">
+
+      <div className="flex flex-col items-center" aria-label={`Spread: ${formatNumber(price.spread, 2)}`}>
         <span className="text-[10px] text-muted-foreground">Spread</span>
         <span className="text-xs font-mono text-muted-foreground">
           {formatNumber(price.spread, 2)}
         </span>
       </div>
-      
+
       <button
         onClick={() => onPriceClick?.(price.ask)}
+        aria-label={`Set limit price to ask: ${formatCurrency(price.ask, { decimals: 2 })}`}
         className="flex flex-col items-end"
       >
         <span className="text-[10px] text-muted-foreground">Ask</span>

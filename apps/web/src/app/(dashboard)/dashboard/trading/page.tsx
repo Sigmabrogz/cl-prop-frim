@@ -10,7 +10,7 @@ import { TradingLayout, useIsMobile, MobileTradingLayout } from "@/components/tr
 import { TradingTopBar, TradingTopBarCompact } from "@/components/trading/trading-top-bar";
 import { TradingChart } from "@/components/trading/trading-chart";
 import { OrderForm, QuickTradeButtons } from "@/components/trading/order-form";
-import { PositionsPanel } from "@/components/trading/positions-panel";
+import { TradingBottomPanel } from "@/components/trading/trading-bottom-panel";
 import { PriceTicker, PriceDisplay } from "@/components/trading/price-ticker";
 import { OrderBook } from "@/components/trading/order-book";
 import { OneClickTrading } from "@/components/trading/one-click-trading";
@@ -19,9 +19,6 @@ import { Button } from "@/components/ui/button";
 import { cn, formatCurrency } from "@/lib/utils";
 import {
   Wallet,
-  Target,
-  ListOrdered,
-  Clock,
   Activity,
   Maximize2,
   Settings,
@@ -40,7 +37,6 @@ function TradingContent() {
   const [selectedAccount, setSelectedAccount] = useState<TradingAccount | null>(null);
   const [selectedSymbol, setSelectedSymbol] = useState("BTCUSDT");
   const [isLoading, setIsLoading] = useState(true);
-  const [bottomTab, setBottomTab] = useState<"positions" | "orders" | "history">("positions");
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [orderSide, setOrderSide] = useState<"LONG" | "SHORT">("LONG");
   const [prefillPrice, setPrefillPrice] = useState<number | undefined>();
@@ -277,53 +273,13 @@ function TradingContent() {
     </div>
   );
 
-  // Positions Panel
-  const positions = (
-    <div className="h-full flex flex-col">
-      {/* Tabs */}
-      <div className="flex items-center border-b border-border shrink-0">
-        {[
-          { id: "positions", label: "Positions", icon: Target },
-          { id: "orders", label: "Open Orders", icon: ListOrdered },
-          { id: "history", label: "History", icon: Clock },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setBottomTab(tab.id as typeof bottomTab)}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors",
-              bottomTab === tab.id
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <tab.icon className="h-4 w-4" />
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin p-3">
-        {bottomTab === "positions" && selectedAccount && (
-          <PositionsPanel accountId={selectedAccount.id} />
-        )}
-        {bottomTab === "orders" && (
-          <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-8">
-            <ListOrdered className="h-8 w-8 mb-2 opacity-50" />
-            <p className="text-sm">No pending orders</p>
-          </div>
-        )}
-        {bottomTab === "history" && (
-          <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-8">
-            <Clock className="h-8 w-8 mb-2 opacity-50" />
-            <p className="text-sm mb-2">View your complete trade history</p>
-            <a href="/dashboard/history">
-              <Button variant="outline" size="sm">View History</Button>
-            </a>
-          </div>
-        )}
-      </div>
+  // Positions Panel - Using resizable TradingBottomPanel
+  const positions = selectedAccount ? (
+    <TradingBottomPanel accountId={selectedAccount.id} />
+  ) : (
+    <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
+      <Wallet className="h-8 w-8 mb-2 opacity-50" />
+      <p className="text-sm">Select an account to trade</p>
     </div>
   );
 

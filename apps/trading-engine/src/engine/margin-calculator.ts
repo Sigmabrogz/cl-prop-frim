@@ -2,6 +2,11 @@
 // MARGIN CALCULATOR
 // ===========================================
 
+import {
+  MAINTENANCE_MARGIN_PCT,
+  ENTRY_FEE_PCT,
+} from '../config/trading-config';
+
 // ===========================================
 // TYPES
 // ===========================================
@@ -20,27 +25,19 @@ export interface LeverageConfig {
 }
 
 // ===========================================
-// CONSTANTS
-// ===========================================
-
-// Maintenance margin percentage (0.5%)
-const MAINTENANCE_MARGIN_PCT = 0.005;
-
-// Fee percentage (spread already applied, this is for calculation)
-const ENTRY_FEE_PCT = 0.0005; // 0.05% = 5 bps
-
-// ===========================================
 // FUNCTIONS
 // ===========================================
 
 /**
  * Calculate margin requirements for a position
+ * @param userLeverage - User's selected leverage (optional, defaults to max allowed)
  */
 export function calculateMargin(
   symbol: string,
   quantity: number,
   entryPrice: number,
-  leverageConfig: LeverageConfig
+  leverageConfig: LeverageConfig,
+  userLeverage?: number
 ): MarginCalculation {
   // Determine max leverage based on symbol
   const isMajor = symbol.includes('BTC') || symbol.includes('ETH');
@@ -48,11 +45,16 @@ export function calculateMargin(
     ? leverageConfig.btcEthMaxLeverage
     : leverageConfig.altcoinMaxLeverage;
 
+  // Use user's leverage if provided and valid, otherwise use max
+  const effectiveLeverage = userLeverage && userLeverage >= 1 && userLeverage <= maxLeverage
+    ? userLeverage
+    : maxLeverage;
+
   // Calculate notional value
   const notionalValue = quantity * entryPrice;
 
   // Calculate margin required (notional / leverage)
-  const marginRequired = notionalValue / maxLeverage;
+  const marginRequired = notionalValue / effectiveLeverage;
 
   // Calculate entry fee
   const entryFee = notionalValue * ENTRY_FEE_PCT;
@@ -62,12 +64,12 @@ export function calculateMargin(
   // liquidationPrice = entryPrice * (1 - (1/leverage) + maintenanceMargin)
   // For SHORT: liquidationPrice = entryPrice * (1 + (1/leverage) - maintenanceMargin)
   // We'll calculate for LONG here, caller should adjust for SHORT
-  const liquidationPrice = calculateLiquidationPrice('LONG', entryPrice, maxLeverage);
+  const liquidationPrice = calculateLiquidationPrice('LONG', entryPrice, effectiveLeverage);
 
   return {
     notionalValue,
     marginRequired,
-    maxLeverage,
+    maxLeverage: effectiveLeverage, // Return the effective leverage used
     entryFee,
     liquidationPrice,
   };

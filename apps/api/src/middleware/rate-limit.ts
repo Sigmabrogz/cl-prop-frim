@@ -97,3 +97,11 @@ export const strictRateLimiter = createRateLimiter({
   keyPrefix: 'ratelimit:strict',
 });
 
+// Export rate limiter for heavy operations (5 req per 5 minutes)
+// Prevents abuse of CSV exports that can fetch 10,000+ records
+export const exportRateLimiter = createRateLimiter({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  maxRequests: 5,
+  keyPrefix: 'ratelimit:export',
+});
+

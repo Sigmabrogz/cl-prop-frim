@@ -217,31 +217,56 @@ async function seed() {
   }
 
   // ===========================================
-  // SEED ADMIN USER (for testing)
+  // SEED USERS (for testing)
   // ===========================================
-  console.log('\n👤 Seeding admin user...');
+  console.log('\n👤 Seeding test users...');
 
+  // Pre-computed argon2id hashes (generated with memoryCost=65536, timeCost=3, parallelism=4)
+  // Admin123!
+  const adminPasswordHash = '$argon2id$v=19$m=65536,t=3,p=4$PH4wrfBAS7NKKYQCzhJhfA$p9jZVK9Sj8iehX1KjMIAG79pHaevmosEBD8NHx7zGzE';
+  // Test123!
+  const testUserPasswordHash = '$argon2id$v=19$m=65536,t=3,p=4$nTxV+gD8NgV+sbvuRD3gTw$BghebM79aNea2p6kbu1/YIheM3BuMX+tlOAJOGpGB3A';
+
+  // Create admin user
   const adminEmail = 'admin@propfirm.local';
   const existingAdmin = await db.query.users.findFirst({
     where: eq(users.email, adminEmail),
   });
 
   if (!existingAdmin) {
-    // Password: Admin123! (hashed with argon2)
-    // In production, use a secure password and proper hashing
     await db.insert(users).values({
       email: adminEmail,
       username: 'admin',
-      passwordHash: '$argon2id$v=19$m=65536,t=3,p=4$randomsalt$hashedpassword', // Placeholder
+      passwordHash: adminPasswordHash,
       fullName: 'Platform Admin',
       role: 'admin',
       status: 'active',
       emailVerifiedAt: new Date(),
     });
-    console.log(`  ✓ Created admin user: ${adminEmail}`);
-    console.log('  ⚠️  Note: Update the password hash with a real argon2 hash!');
+    console.log(`  ✓ Created admin user: ${adminEmail} (password: Admin123!)`);
   } else {
     console.log(`  - Admin user exists: ${adminEmail}`);
+  }
+
+  // Create test user
+  const testEmail = 'test@propfirm.local';
+  const existingTestUser = await db.query.users.findFirst({
+    where: eq(users.email, testEmail),
+  });
+
+  if (!existingTestUser) {
+    await db.insert(users).values({
+      email: testEmail,
+      username: 'testuser',
+      passwordHash: testUserPasswordHash,
+      fullName: 'Test User',
+      role: 'user',
+      status: 'active',
+      emailVerifiedAt: new Date(),
+    });
+    console.log(`  ✓ Created test user: ${testEmail} (password: Test123!)`);
+  } else {
+    console.log(`  - Test user exists: ${testEmail}`);
   }
 
   console.log('\n✅ Database seeding complete!\n');

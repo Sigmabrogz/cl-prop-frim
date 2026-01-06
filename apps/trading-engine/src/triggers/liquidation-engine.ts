@@ -22,6 +22,9 @@ export class LiquidationEngine {
   // Warning threshold (50% of margin remaining)
   private warningThreshold = 0.5;
 
+  // Max price staleness for liquidation (5 seconds)
+  private readonly MAX_PRICE_AGE_MS = 5000;
+
   constructor(priceEngine: PriceEngine) {
     this.priceEngine = priceEngine;
   }
@@ -66,6 +69,17 @@ export class LiquidationEngine {
    * Check a single position for liquidation
    */
   private async checkPosition(position: Position, price: PriceData): Promise<void> {
+    // CRITICAL: Check price staleness before liquidation
+    // Never liquidate on stale data - this could cause false liquidations
+    const priceAge = Date.now() - price.timestamp;
+    if (priceAge > this.MAX_PRICE_AGE_MS) {
+      console.warn(
+        `[LiquidationEngine] Skipping liquidation check for ${position.id}: ` +
+        `price is stale (${(priceAge / 1000).toFixed(1)}s old)`
+      );
+      return;
+    }
+
     // Use appropriate price for the position side
     const currentPrice = position.side === 'LONG' ? price.ourBid : price.ourAsk;
 

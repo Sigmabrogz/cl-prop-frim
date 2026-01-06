@@ -6,11 +6,12 @@ import type { ServerWebSocket } from 'bun';
 import { verifyToken, type TokenPayload } from './auth.js';
 import { ConnectionManager, type ClientConnection } from './connection-manager.js';
 import { handleSubscribe, handleUnsubscribe } from './handlers/subscribe.js';
-import { handlePlaceOrder } from './handlers/place-order.js';
+import { handlePlaceOrder, handleCancelOrder, handleGetPendingOrders } from './handlers/place-order.js';
 import { handleClosePosition } from './handlers/close-position.js';
 import { handleModifyPosition } from './handlers/modify-position.js';
 import { handleGetPositions } from './handlers/get-positions.js';
 import type { PriceEngine } from '../price/price-engine.js';
+import { getOrderTriggerEngine, type OrderFillEvent } from '../triggers/order-trigger-engine.js';
 
 // ===========================================
 // MESSAGE TYPES
@@ -48,6 +49,25 @@ let priceEngineRef: PriceEngine;
 export function startWebSocketServer(port: number, priceEngine: PriceEngine) {
   connectionManager = new ConnectionManager();
   priceEngineRef = priceEngine;
+
+  // Initialize and start OrderTriggerEngine for limit orders
+  const orderTriggerEngine = getOrderTriggerEngine();
+  orderTriggerEngine.initialize(priceEngine);
+  orderTriggerEngine.start();
+
+  // Register callback to notify clients when limit orders fill
+  orderTriggerEngine.onOrderFill((event: OrderFillEvent) => {
+    // Send ORDER_FILLED to the user who placed the order
+    connectionManager.sendToUser(event.order.userId, {
+      type: 'ORDER_FILLED',
+      clientOrderId: event.order.clientOrderId,
+      orderId: event.order.id,
+      position: { id: event.positionId },
+      executionPrice: event.executionPrice,
+      executionTime: event.executionTime,
+      filledFromQueue: true,
+    });
+  });
 
   // Subscribe to price updates and broadcast to clients
   priceEngine.onPriceUpdate((symbol, price) => {
@@ -154,7 +174,15 @@ export function startWebSocketServer(port: number, priceEngine: PriceEngine) {
               break;
 
             case 'CLOSE_POSITION':
-              await handleClosePosition(ws, data.positionId as string, priceEngineRef);
+              await handleClosePosition(ws, data.positionId as string, priceEngineRef, data.quantity as number | undefined);
+              break;
+
+            case 'CANCEL_ORDER':
+              await handleCancelOrder(ws, data.orderId as string);
+              break;
+
+            case 'GET_PENDING_ORDERS':
+              handleGetPendingOrders(ws, data.accountId as string);
               break;
 
             case 'MODIFY_POSITION':
@@ -215,7 +243,11 @@ export function startWebSocketServer(port: number, priceEngine: PriceEngine) {
   return {
     server,
     connectionManager,
-    close: () => server.stop(),
+    orderTriggerEngine,
+    close: () => {
+      orderTriggerEngine.stop();
+      server.stop();
+    },
     broadcast: (message: OutboundMessage) => connectionManager.broadcastAll(message),
     sendToUser: (userId: string, message: OutboundMessage) =>
       connectionManager.sendToUser(userId, message),

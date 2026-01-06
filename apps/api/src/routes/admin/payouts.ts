@@ -7,7 +7,7 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { db } from '@propfirm/database';
 import { payouts, tradingAccounts, users } from '@propfirm/database/schema';
-import { eq, desc, sql } from 'drizzle-orm';
+import { eq, and, or, desc, sql } from 'drizzle-orm';
 
 const payoutsAdmin = new Hono();
 
@@ -134,6 +134,8 @@ payoutsAdmin.post('/:id/approve', async (c) => {
   const payoutId = c.req.param('id');
   const admin = c.get('user');
 
+  // ATOMIC: Add status='pending' check in WHERE clause to prevent race condition
+  // This ensures the update only succeeds if status is still 'pending'
   const [payout] = await db
     .update(payouts)
     .set({
@@ -141,15 +143,23 @@ payoutsAdmin.post('/:id/approve', async (c) => {
       approvedBy: admin.id,
       approvedAt: new Date(),
     })
-    .where(eq(payouts.id, payoutId))
+    .where(and(
+      eq(payouts.id, payoutId),
+      eq(payouts.status, 'pending')
+    ))
     .returning();
 
   if (!payout) {
-    return c.json({ error: 'Payout not found' }, 404);
-  }
+    // Could be either not found OR not pending - check which
+    const existing = await db.query.payouts.findFirst({
+      where: eq(payouts.id, payoutId),
+      columns: { id: true, status: true },
+    });
 
-  if (payout.status !== 'pending') {
-    return c.json({ error: 'Payout is not pending' }, 400);
+    if (!existing) {
+      return c.json({ error: 'Payout not found' }, 404);
+    }
+    return c.json({ error: `Payout is not pending (current status: ${existing.status})` }, 400);
   }
 
   return c.json({
@@ -167,19 +177,7 @@ payoutsAdmin.post('/:id/reject', zValidator('json', rejectPayoutSchema), async (
   const admin = c.get('user');
   const { reason } = c.req.valid('json');
 
-  // Get current payout to check status
-  const currentPayout = await db.query.payouts.findFirst({
-    where: eq(payouts.id, payoutId),
-  });
-
-  if (!currentPayout) {
-    return c.json({ error: 'Payout not found' }, 404);
-  }
-
-  if (currentPayout.status !== 'pending') {
-    return c.json({ error: 'Payout is not pending' }, 400);
-  }
-
+  // ATOMIC: Add status='pending' check in WHERE clause to prevent race condition
   const [payout] = await db
     .update(payouts)
     .set({
@@ -188,8 +186,24 @@ payoutsAdmin.post('/:id/reject', zValidator('json', rejectPayoutSchema), async (
       rejectedAt: new Date(),
       rejectionReason: reason,
     })
-    .where(eq(payouts.id, payoutId))
+    .where(and(
+      eq(payouts.id, payoutId),
+      eq(payouts.status, 'pending')
+    ))
     .returning();
+
+  if (!payout) {
+    // Could be either not found OR not pending - check which
+    const existing = await db.query.payouts.findFirst({
+      where: eq(payouts.id, payoutId),
+      columns: { id: true, status: true },
+    });
+
+    if (!existing) {
+      return c.json({ error: 'Payout not found' }, 404);
+    }
+    return c.json({ error: `Payout is not pending (current status: ${existing.status})` }, 400);
+  }
 
   return c.json({
     message: 'Payout rejected',
@@ -204,25 +218,30 @@ payoutsAdmin.post('/:id/reject', zValidator('json', rejectPayoutSchema), async (
 payoutsAdmin.post('/:id/process', async (c) => {
   const payoutId = c.req.param('id');
 
-  const currentPayout = await db.query.payouts.findFirst({
-    where: eq(payouts.id, payoutId),
-  });
-
-  if (!currentPayout) {
-    return c.json({ error: 'Payout not found' }, 404);
-  }
-
-  if (currentPayout.status !== 'approved') {
-    return c.json({ error: 'Payout must be approved first' }, 400);
-  }
-
+  // ATOMIC: Add status='approved' check in WHERE clause to prevent race condition
   const [payout] = await db
     .update(payouts)
     .set({
       status: 'processing',
     })
-    .where(eq(payouts.id, payoutId))
+    .where(and(
+      eq(payouts.id, payoutId),
+      eq(payouts.status, 'approved')
+    ))
     .returning();
+
+  if (!payout) {
+    // Could be either not found OR not approved - check which
+    const existing = await db.query.payouts.findFirst({
+      where: eq(payouts.id, payoutId),
+      columns: { id: true, status: true },
+    });
+
+    if (!existing) {
+      return c.json({ error: 'Payout not found' }, 404);
+    }
+    return c.json({ error: `Payout must be approved first (current status: ${existing.status})` }, 400);
+  }
 
   return c.json({
     message: 'Payout marked as processing',
@@ -241,18 +260,8 @@ payoutsAdmin.post(
     const payoutId = c.req.param('id');
     const { txHash } = c.req.valid('json');
 
-    const currentPayout = await db.query.payouts.findFirst({
-      where: eq(payouts.id, payoutId),
-    });
-
-    if (!currentPayout) {
-      return c.json({ error: 'Payout not found' }, 404);
-    }
-
-    if (currentPayout.status !== 'processing' && currentPayout.status !== 'approved') {
-      return c.json({ error: 'Payout must be approved or processing' }, 400);
-    }
-
+    // ATOMIC: Add status check in WHERE clause to prevent race condition
+    // Allows completion from either 'approved' or 'processing' status
     const [payout] = await db
       .update(payouts)
       .set({
@@ -260,8 +269,27 @@ payoutsAdmin.post(
         processedAt: new Date(),
         txHash: txHash || null,
       })
-      .where(eq(payouts.id, payoutId))
+      .where(and(
+        eq(payouts.id, payoutId),
+        or(
+          eq(payouts.status, 'approved'),
+          eq(payouts.status, 'processing')
+        )
+      ))
       .returning();
+
+    if (!payout) {
+      // Could be either not found OR wrong status - check which
+      const existing = await db.query.payouts.findFirst({
+        where: eq(payouts.id, payoutId),
+        columns: { id: true, status: true },
+      });
+
+      if (!existing) {
+        return c.json({ error: 'Payout not found' }, 404);
+      }
+      return c.json({ error: `Payout must be approved or processing (current status: ${existing.status})` }, 400);
+    }
 
     return c.json({
       message: 'Payout completed',

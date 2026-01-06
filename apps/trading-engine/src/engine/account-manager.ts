@@ -57,13 +57,16 @@ export class AccountManager {
   
   // Background sync interval
   private syncInterval: ReturnType<typeof setInterval> | null = null;
-  
+
+  // Lock cleanup interval
+  private lockCleanupInterval: ReturnType<typeof setInterval> | null = null;
+
   // Sync frequency (5 seconds)
   private readonly SYNC_INTERVAL_MS = 5000;
-  
+
   // Lock timeout (5 seconds max hold)
   private readonly LOCK_TIMEOUT_MS = 5000;
-  
+
   // Lock holders with timestamps for timeout
   private lockTimestamps: Map<string, number> = new Map();
 
@@ -72,17 +75,17 @@ export class AccountManager {
    */
   async initialize(): Promise<void> {
     console.log('[AccountManager] Initializing...');
-    
+
     // Start background sync to database
     this.syncInterval = setInterval(() => {
       this.syncToDatabase().catch(err => {
         console.error('[AccountManager] Sync error:', err);
       });
     }, this.SYNC_INTERVAL_MS);
-    
-    // Also start lock cleanup interval
-    setInterval(() => this.cleanupStaleLocks(), 1000);
-    
+
+    // Also start lock cleanup interval (store reference for cleanup)
+    this.lockCleanupInterval = setInterval(() => this.cleanupStaleLocks(), 1000);
+
     console.log('[AccountManager] Initialized with 5s sync interval');
   }
 
@@ -160,17 +163,22 @@ export class AccountManager {
 
   /**
    * Update account state in memory (marks as dirty for sync)
+   * THROWS if account is not cached - this is intentional to prevent silent failures
    */
   updateAccount(accountId: string, updates: Partial<AccountState>): void {
     const account = this.accounts.get(accountId);
     if (!account) {
-      console.warn(`[AccountManager] Cannot update non-cached account ${accountId}`);
-      return;
+      // CRITICAL: Throw error instead of silent return
+      // If we're updating an account, it MUST be in cache (loaded during order execution)
+      // A missing account means a serious bug - order executed but state won't persist
+      const error = new Error(`[AccountManager] CRITICAL: Cannot update non-cached account ${accountId}. This indicates a bug - account should have been loaded before order execution.`);
+      console.error(error.message);
+      throw error;
     }
-    
+
     // Apply updates
     Object.assign(account, updates, { _dirty: true });
-    
+
     // Mark as dirty for sync
     this.dirtyAccounts.add(accountId);
   }
@@ -336,16 +344,22 @@ export class AccountManager {
    */
   async shutdown(): Promise<void> {
     console.log('[AccountManager] Shutting down...');
-    
+
     // Stop sync interval
     if (this.syncInterval) {
       clearInterval(this.syncInterval);
       this.syncInterval = null;
     }
-    
+
+    // Stop lock cleanup interval
+    if (this.lockCleanupInterval) {
+      clearInterval(this.lockCleanupInterval);
+      this.lockCleanupInterval = null;
+    }
+
     // Flush all dirty accounts
     await this.syncToDatabase();
-    
+
     console.log('[AccountManager] Shutdown complete');
   }
 }

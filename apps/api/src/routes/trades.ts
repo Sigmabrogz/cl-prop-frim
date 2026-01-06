@@ -9,6 +9,7 @@ import { db } from '@propfirm/database';
 import { trades, tradingAccounts } from '@propfirm/database/schema';
 import { eq, and, desc, sql, gte, lte } from 'drizzle-orm';
 import { requireAuth } from '../middleware/auth.js';
+import { exportRateLimiter } from '../middleware/rate-limit.js';
 
 const tradesRouter = new Hono();
 
@@ -128,9 +129,9 @@ tradesRouter.get('/:id', async (c) => {
     return c.json({ error: 'Trade not found' }, 404);
   }
 
-  // Verify ownership
+  // Verify ownership - return 403 to prevent info disclosure about which IDs exist
   if (trade.account.userId !== user.id) {
-    return c.json({ error: 'Trade not found' }, 404);
+    return c.json({ error: 'Access denied' }, 403);
   }
 
   return c.json({ trade });
@@ -139,8 +140,9 @@ tradesRouter.get('/:id', async (c) => {
 /**
  * GET /api/trades/export
  * Export trades as CSV
+ * Rate limited: 5 requests per 5 minutes
  */
-tradesRouter.get('/export/csv', zValidator('query', listTradesSchema), async (c) => {
+tradesRouter.get('/export/csv', exportRateLimiter, zValidator('query', listTradesSchema), async (c) => {
   const user = c.get('user');
   const { accountId, symbol, side, fromDate, toDate } = c.req.valid('query');
 

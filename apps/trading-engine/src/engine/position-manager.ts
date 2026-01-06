@@ -184,6 +184,16 @@ export class PositionManager {
   }
 
   /**
+   * Update position with new values (for partial close)
+   */
+  updatePosition(positionId: string, updates: Partial<Position>): void {
+    const position = this.positions.get(positionId);
+    if (!position) return;
+
+    Object.assign(position, updates);
+  }
+
+  /**
    * Update all positions for a symbol with new price
    */
   updateSymbolPrices(symbol: string, price: PriceData): void {

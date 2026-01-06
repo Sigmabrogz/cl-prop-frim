@@ -3,6 +3,7 @@
 import { useTradingStore } from "@/hooks/use-websocket";
 import { cn, formatCurrency, formatNumber } from "@/lib/utils";
 import { TrendingUp, TrendingDown, Activity, Star, StarOff } from "lucide-react";
+import Image from "next/image";
 
 interface PriceTickerProps {
   symbol: string;
@@ -13,19 +14,64 @@ interface PriceTickerProps {
   compact?: boolean;
 }
 
-// Symbol icons mapping
-const symbolIcons: Record<string, { gradient: string; letter: string }> = {
-  BTC: { gradient: "from-orange-500 to-yellow-500", letter: "₿" },
-  ETH: { gradient: "from-purple-500 to-blue-500", letter: "Ξ" },
-  SOL: { gradient: "from-purple-400 to-pink-500", letter: "◎" },
-  DOGE: { gradient: "from-yellow-400 to-orange-400", letter: "Ð" },
-  XRP: { gradient: "from-gray-400 to-gray-600", letter: "✕" },
-  ADA: { gradient: "from-blue-400 to-blue-600", letter: "₳" },
-  DOT: { gradient: "from-pink-500 to-purple-500", letter: "●" },
-  LINK: { gradient: "from-blue-500 to-indigo-500", letter: "⬡" },
-  BNB: { gradient: "from-yellow-500 to-yellow-600", letter: "B" },
-  AVAX: { gradient: "from-red-500 to-red-600", letter: "A" },
+// Symbol logo URLs using CoinGecko CDN (reliable and free)
+const symbolLogos: Record<string, string> = {
+  BTC: "https://assets.coingecko.com/coins/images/1/small/bitcoin.png",
+  ETH: "https://assets.coingecko.com/coins/images/279/small/ethereum.png",
+  SOL: "https://assets.coingecko.com/coins/images/4128/small/solana.png",
+  DOGE: "https://assets.coingecko.com/coins/images/5/small/dogecoin.png",
+  XRP: "https://assets.coingecko.com/coins/images/44/small/xrp-symbol-white-128.png",
+  ADA: "https://assets.coingecko.com/coins/images/975/small/cardano.png",
+  DOT: "https://assets.coingecko.com/coins/images/12171/small/polkadot.png",
+  LINK: "https://assets.coingecko.com/coins/images/877/small/chainlink-new-logo.png",
+  BNB: "https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png",
+  AVAX: "https://assets.coingecko.com/coins/images/12559/small/Avalanche_Circle_RedWhite_Trans.png",
 };
+
+// Fallback gradient colors if image fails to load
+const symbolGradients: Record<string, string> = {
+  BTC: "from-orange-500 to-yellow-500",
+  ETH: "from-purple-500 to-blue-500",
+  SOL: "from-purple-400 to-pink-500",
+  DOGE: "from-yellow-400 to-orange-400",
+  XRP: "from-gray-400 to-gray-600",
+  ADA: "from-blue-400 to-blue-600",
+  DOT: "from-pink-500 to-purple-500",
+  LINK: "from-blue-500 to-indigo-500",
+  BNB: "from-yellow-500 to-yellow-600",
+  AVAX: "from-red-500 to-red-600",
+};
+
+function CryptoIcon({ symbol, size = 32, className }: { symbol: string; size?: number; className?: string }) {
+  const logoUrl = symbolLogos[symbol];
+  const gradient = symbolGradients[symbol] || "from-gray-500 to-gray-600";
+
+  if (!logoUrl) {
+    // Fallback to letter icon
+    return (
+      <div className={cn(
+        "rounded-lg bg-gradient-to-br flex items-center justify-center",
+        gradient,
+        className
+      )} style={{ width: size, height: size }}>
+        <span className="font-bold text-white" style={{ fontSize: size * 0.4 }}>{symbol[0]}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn("relative rounded-lg overflow-hidden bg-background-tertiary", className)} style={{ width: size, height: size }}>
+      <Image
+        src={logoUrl}
+        alt={`${symbol} logo`}
+        width={size}
+        height={size}
+        className="object-contain"
+        unoptimized // Use unoptimized for external URLs
+      />
+    </div>
+  );
+}
 
 export function PriceTicker({
   symbol,
@@ -37,7 +83,6 @@ export function PriceTicker({
 }: PriceTickerProps) {
   const price = useTradingStore((state) => state.prices[symbol]);
   const baseSymbol = symbol.replace("USDT", "");
-  const iconConfig = symbolIcons[baseSymbol] || { gradient: "from-gray-500 to-gray-600", letter: baseSymbol[0] };
 
   if (!price) {
     return (
@@ -85,12 +130,7 @@ export function PriceTicker({
         )}
       >
         <div className="flex items-center gap-2 min-w-0">
-          <div className={cn(
-            "w-6 h-6 rounded-md bg-gradient-to-br flex items-center justify-center shrink-0",
-            iconConfig.gradient
-          )}>
-            <span className="text-xs font-bold text-white">{iconConfig.letter}</span>
-          </div>
+          <CryptoIcon symbol={baseSymbol} size={24} className="shrink-0" />
           <span className="font-medium text-sm truncate">{baseSymbol}</span>
         </div>
         <div className="text-right shrink-0 ml-2">
@@ -136,12 +176,11 @@ export function PriceTicker({
       )}
 
       {/* Symbol icon */}
-      <div className={cn(
-        "w-8 h-8 rounded-lg bg-gradient-to-br flex items-center justify-center shadow-sm transition-transform group-hover:scale-105 shrink-0",
-        iconConfig.gradient
-      )}>
-        <span className="text-sm font-bold text-white">{iconConfig.letter}</span>
-      </div>
+      <CryptoIcon 
+        symbol={baseSymbol} 
+        size={32} 
+        className="shadow-sm transition-transform group-hover:scale-105 shrink-0" 
+      />
 
       {/* Symbol and price - responsive layout */}
       <div className="flex-1 min-w-0 flex flex-col gap-0.5">
@@ -170,7 +209,6 @@ export function PriceTicker({
 export function PriceDisplay({ symbol, showDetails = true }: { symbol: string; showDetails?: boolean }) {
   const price = useTradingStore((state) => state.prices[symbol]);
   const baseSymbol = symbol.replace("USDT", "");
-  const iconConfig = symbolIcons[baseSymbol] || { gradient: "from-gray-500 to-gray-600", letter: baseSymbol[0] };
 
   if (!price) {
     return (
@@ -189,17 +227,17 @@ export function PriceDisplay({ symbol, showDetails = true }: { symbol: string; s
   const change24h = ((midPrice % 1000) / 1000 - 0.5) * 10;
   const isPositive = change24h >= 0;
 
+  // Simulated funding rate (TODO: Get from Binance API)
+  // In perpetual futures, funding rate is typically between -0.1% and 0.1% per 8 hours
+  const fundingRate = ((midPrice % 100) / 100 - 0.5) * 0.002; // -0.1% to 0.1%
+  const isFundingPositive = fundingRate >= 0;
+
   return (
     <div className="flex items-center gap-6">
       {/* Left: Symbol + Price */}
       <div className="flex items-center gap-3">
         {/* Symbol icon */}
-        <div className={cn(
-          "w-8 h-8 rounded-lg bg-gradient-to-br flex items-center justify-center shrink-0",
-          iconConfig.gradient
-        )}>
-          <span className="text-sm font-bold text-white">{iconConfig.letter}</span>
-        </div>
+        <CryptoIcon symbol={baseSymbol} size={32} className="shrink-0" />
 
         {/* Price and symbol */}
         <div>
@@ -223,7 +261,7 @@ export function PriceDisplay({ symbol, showDetails = true }: { symbol: string; s
           {/* Divider */}
           <div className="hidden md:block h-8 w-px bg-border" />
 
-          {/* Bid/Ask/Spread - Clean grid */}
+          {/* Bid/Ask/Mark/Spread - Clean grid */}
           <div className="hidden md:flex items-center gap-4 text-xs">
             <div className="flex flex-col">
               <span className="text-muted-foreground uppercase tracking-wider text-[10px]">Bid</span>
@@ -234,13 +272,31 @@ export function PriceDisplay({ symbol, showDetails = true }: { symbol: string; s
               <span className="font-mono font-semibold text-loss">{formatCurrency(price.ask, { decimals: 2 })}</span>
             </div>
             <div className="flex flex-col">
+              <span className="text-muted-foreground uppercase tracking-wider text-[10px]">Mark</span>
+              <span className="font-mono font-semibold text-blue-500">{formatCurrency(midPrice, { decimals: 2 })}</span>
+            </div>
+            <div className="flex flex-col">
               <span className="text-muted-foreground uppercase tracking-wider text-[10px]">Spread</span>
               <span className="font-mono font-medium text-foreground/70">{formatNumber(price.spread, 2)}</span>
             </div>
           </div>
 
+          {/* Divider */}
+          <div className="hidden lg:block h-8 w-px bg-border" />
+
+          {/* Funding Rate */}
+          <div className="hidden lg:flex flex-col text-xs">
+            <span className="text-muted-foreground uppercase tracking-wider text-[10px]">Funding</span>
+            <span className={cn(
+              "font-mono font-semibold",
+              isFundingPositive ? "text-profit" : "text-loss"
+            )}>
+              {isFundingPositive ? "+" : ""}{(fundingRate * 100).toFixed(4)}%
+            </span>
+          </div>
+
           {/* Live indicator */}
-          <div className="hidden lg:flex items-center gap-1.5 text-xs">
+          <div className="hidden xl:flex items-center gap-1.5 text-xs">
             <span className="w-1.5 h-1.5 rounded-full bg-profit animate-pulse" />
             <span className="text-muted-foreground font-medium">Live</span>
           </div>

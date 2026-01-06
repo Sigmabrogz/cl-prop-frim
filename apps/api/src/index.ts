@@ -16,6 +16,8 @@ import authRoutes from './routes/auth.js';
 import accountRoutes from './routes/accounts.js';
 import planRoutes from './routes/plans.js';
 import tradeRoutes from './routes/trades.js';
+import tradeEventsRoutes from './routes/trade-events.js';
+import orderRoutes from './routes/orders.js';
 import payoutRoutes from './routes/payouts.js';
 import adminRoutes from './routes/admin/index.js';
 
@@ -129,6 +131,8 @@ app.route('/api/auth', authRoutes);
 app.route('/api/accounts', accountRoutes);
 app.route('/api/plans', planRoutes);
 app.route('/api/trades', tradeRoutes);
+app.route('/api/trade-events', tradeEventsRoutes);
+app.route('/api/orders', orderRoutes);
 app.route('/api/payouts', payoutRoutes);
 app.route('/api/admin', adminRoutes);
 

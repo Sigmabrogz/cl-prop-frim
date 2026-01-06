@@ -12,11 +12,13 @@ import { closePositionSync } from '../../engine/close-executor.js';
 
 /**
  * Handle manual position close request
+ * @param quantity - Optional: partial close quantity (if not provided, closes entire position)
  */
 export async function handleClosePosition(
   ws: ServerWebSocket<any>,
   positionId: string,
-  priceEngine: PriceEngine
+  priceEngine: PriceEngine,
+  quantity?: number
 ): Promise<void> {
   const startTime = Date.now();
   const userId = ws.data.userId;
@@ -32,10 +34,10 @@ export async function handleClosePosition(
   });
 
   try {
-    // 0. Rate limiting check
-    const isRateLimited = await rateLimiter.isRateLimited(userId, 'CLOSE_POSITION', 10, 1000);
+    // 0. Rate limiting check (synchronous - uses local fallback with async Redis update)
+    const isRateLimited = rateLimiter.isRateLimited(userId, 'CLOSE_POSITION');
     if (isRateLimited) {
-      const remaining = await rateLimiter.getRemainingRequests(userId, 'CLOSE_POSITION', 10);
+      const remaining = rateLimiter.getRemainingRequests(userId, 'CLOSE_POSITION');
       ws.send(
         JSON.stringify({
           type: 'CLOSE_REJECTED',
@@ -58,6 +60,22 @@ export async function handleClosePosition(
           type: 'CLOSE_REJECTED',
           positionId,
           reason: 'Position not found',
+        })
+      );
+      return;
+    }
+
+    // 1.5 Validate partial close quantity
+    const closeQuantity = quantity && quantity > 0 && quantity < position.quantity
+      ? quantity
+      : position.quantity; // Full close if not specified or invalid
+
+    if (quantity && quantity > position.quantity) {
+      ws.send(
+        JSON.stringify({
+          type: 'CLOSE_REJECTED',
+          positionId,
+          reason: `Close quantity (${quantity}) exceeds position size (${position.quantity})`,
         })
       );
       return;
@@ -92,11 +110,13 @@ export async function handleClosePosition(
     const exitPrice = position.side === 'LONG' ? price.ourBid : price.ourAsk;
 
     // 5. EXECUTE CLOSE SYNCHRONOUSLY (<10ms target)
+    const isPartialClose = closeQuantity < position.quantity;
     const result = await closePositionSync(
       positionId,
       exitPrice,
       'MANUAL',
-      price.midPrice
+      price.midPrice,
+      closeQuantity // Pass the quantity for partial close
     );
 
     const totalTime = Date.now() - startTime;
@@ -116,16 +136,20 @@ export async function handleClosePosition(
       return;
     }
 
-    // 7. Send POSITION_CLOSED immediately
+    // 7. Send response based on partial/full close
+    const responseType = isPartialClose ? 'POSITION_PARTIALLY_CLOSED' : 'POSITION_CLOSED';
     ws.send(
       JSON.stringify({
-        type: 'POSITION_CLOSED',
+        type: responseType,
         positionId,
         tradeId: result.tradeId,
         exitPrice: result.exitPrice,
+        closedQuantity: closeQuantity,
+        remainingQuantity: isPartialClose ? position.quantity - closeQuantity : 0,
         grossPnl: result.grossPnl,
         netPnl: result.netPnl,
         executionTime: totalTime,
+        updatedPosition: result.updatedPosition, // For partial close
         account: {
           id: result.account?.id,
           currentBalance: result.account?.currentBalance,
@@ -137,8 +161,8 @@ export async function handleClosePosition(
     );
 
     console.log(
-      `[ClosePosition] Position CLOSED in ${totalTime}ms: ` +
-      `${position.symbol} ${position.side} @ ${exitPrice.toFixed(2)} | ` +
+      `[ClosePosition] Position ${isPartialClose ? 'PARTIALLY ' : ''}CLOSED in ${totalTime}ms: ` +
+      `${position.symbol} ${position.side} ${closeQuantity}/${position.quantity} @ ${exitPrice.toFixed(2)} | ` +
       `P&L: ${result.netPnl?.toFixed(2)}`
     );
 
