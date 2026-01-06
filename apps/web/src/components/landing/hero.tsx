@@ -63,9 +63,9 @@ function AnimatedNumber({
 // Live price ticker with multiple assets
 function LivePriceTicker() {
   const [prices, setPrices] = useState([
-    { symbol: "BTC", name: "Bitcoin", price: 91350.42, change: 2.34, icon: "₿" },
-    { symbol: "ETH", name: "Ethereum", price: 3245.18, change: 1.87, icon: "Ξ" },
-    { symbol: "SOL", name: "Solana", price: 142.56, change: -0.42, icon: "◎" },
+    { symbol: "BTC", name: "Bitcoin", price: 91350.42, change: 2.34, icon: "B" },
+    { symbol: "ETH", name: "Ethereum", price: 3245.18, change: 1.87, icon: "E" },
+    { symbol: "SOL", name: "Solana", price: 142.56, change: -0.42, icon: "S" },
   ]);
   const [activeIndex, setActiveIndex] = useState(0);
 

@@ -269,7 +269,7 @@ async function seed() {
     console.log(`  - Test user exists: ${testEmail}`);
   }
 
-  console.log('\n✅ Database seeding complete!\n');
+  console.log('\nDatabase seeding complete!\n');
 }
 
 // Run seed
