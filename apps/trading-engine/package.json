@@ -1,0 +1,29 @@
+{
+  "name": "@propfirm/trading-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "start": "bun run dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@propfirm/database": "workspace:*",
+    "@propfirm/redis": "workspace:*",
+    "@propfirm/shared": "workspace:*",
+    "drizzle-orm": "^0.45.1",
+    "ioredis": "^5.8.2",
+    "jose": "^5.9.0",
+    "postgres": "^3.4.7",
+    "uuid": "^13.0.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.14",
+    "@types/uuid": "^11.0.0",
+    "@types/ws": "^8.5.13",
+    "typescript": "^5.7.2"
+  }
+}

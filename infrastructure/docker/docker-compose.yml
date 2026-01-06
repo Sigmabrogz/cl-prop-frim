@@ -1,0 +1,97 @@
+# ===========================================
+# PROPFIRM PLATFORM - LOCAL DEVELOPMENT
+# ===========================================
+# Usage:
+#   pnpm docker:up    - Start services
+#   pnpm docker:down  - Stop services
+#   pnpm docker:logs  - View logs
+
+services:
+  # ===========================================
+  # PostgreSQL Database
+  # ===========================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: propfirm-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: propfirm
+      POSTGRES_PASSWORD: propfirm_secret
+      POSTGRES_DB: propfirm
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U propfirm -d propfirm"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===========================================
+  # Redis (Cache + Message Queue + Locks)
+  # ===========================================
+  redis:
+    image: redis:7-alpine
+    container_name: propfirm-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===========================================
+  # Redis Commander (Optional - Redis GUI)
+  # ===========================================
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: propfirm-redis-commander
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    profiles:
+      - tools
+
+  # ===========================================
+  # pgAdmin (Optional - PostgreSQL GUI)
+  # ===========================================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: propfirm-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@propfirm.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "8080:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    profiles:
+      - tools
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  default:
+    name: propfirm-network
+

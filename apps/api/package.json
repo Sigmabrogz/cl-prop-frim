@@ -1,0 +1,29 @@
+{
+  "name": "@propfirm/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "start": "bun run dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hono/zod-validator": "^0.7.6",
+    "@propfirm/database": "workspace:*",
+    "@propfirm/redis": "workspace:*",
+    "@propfirm/shared": "workspace:*",
+    "argon2": "^0.41.1",
+    "drizzle-orm": "^0.45.1",
+    "hono": "^4.6.0",
+    "ioredis": "^5.8.2",
+    "jose": "^5.9.0",
+    "postgres": "^3.4.7",
+    "zod": "^4.3.5"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.14",
+    "typescript": "^5.7.2"
+  }
+}
