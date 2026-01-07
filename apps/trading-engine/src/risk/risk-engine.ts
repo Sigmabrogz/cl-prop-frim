@@ -253,42 +253,53 @@ export class RiskEngine {
 
   /**
    * Check for risk breaches
+   * Uses plan-specific limits from account state
    */
   private async checkBreaches(state: AccountRiskState): Promise<void> {
-    // Check daily loss breach (5%)
-    if (state.dailyLossPercent >= 5) {
+    // Calculate limit percentages from account-specific limits
+    const dailyLossLimitPct = (state.dailyLossLimit / state.dailyStartingBalance) * 100;
+    const maxDrawdownLimitPct = (state.maxDrawdownLimit / state.startingBalance) * 100;
+    
+    // Check daily loss breach (using account-specific limit)
+    if (state.dailyLossPercent >= dailyLossLimitPct) {
       await this.triggerBreach(state.accountId, 'DAILY_LOSS', {
         dailyLossPercent: state.dailyLossPercent,
+        dailyLossLimitPct,
         dailyLossLimit: state.dailyLossLimit,
         dailyPnl: state.dailyPnl,
       });
       return;
     }
 
-    // Check daily loss warning (80% of limit = 4%)
-    if (state.dailyLossPercent >= 4 && !state.dailyLossWarning) {
+    // Check daily loss warning (80% of limit)
+    const dailyLossWarningThreshold = dailyLossLimitPct * 0.8;
+    if (state.dailyLossPercent >= dailyLossWarningThreshold && !state.dailyLossWarning) {
       state.dailyLossWarning = true;
       this.sendWarning(state, 'DAILY_LOSS_WARNING', {
         dailyLossPercent: state.dailyLossPercent,
+        dailyLossLimitPct,
         remaining: state.dailyLossLimit - Math.abs(state.dailyPnl),
       });
     }
 
-    // Check max drawdown breach (10%)
-    if (state.drawdownPercent >= 10) {
+    // Check max drawdown breach (using account-specific limit)
+    if (state.drawdownPercent >= maxDrawdownLimitPct) {
       await this.triggerBreach(state.accountId, 'MAX_DRAWDOWN', {
         drawdownPercent: state.drawdownPercent,
+        maxDrawdownLimitPct,
         maxDrawdownLimit: state.maxDrawdownLimit,
         equity: state.equity,
       });
       return;
     }
 
-    // Check drawdown warning (80% of limit = 8%)
-    if (state.drawdownPercent >= 8 && !state.drawdownWarning) {
+    // Check drawdown warning (80% of limit)
+    const drawdownWarningThreshold = maxDrawdownLimitPct * 0.8;
+    if (state.drawdownPercent >= drawdownWarningThreshold && !state.drawdownWarning) {
       state.drawdownWarning = true;
       this.sendWarning(state, 'DRAWDOWN_WARNING', {
         drawdownPercent: state.drawdownPercent,
+        maxDrawdownLimitPct,
         remaining: state.maxDrawdownLimit - (state.startingBalance - state.equity),
       });
     }

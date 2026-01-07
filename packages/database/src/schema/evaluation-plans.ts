@@ -81,7 +81,7 @@ export const evaluationPlans = pgTable(
     ),
     check(
       'valid_account_tier',
-      sql`${table.accountTier} IN ('CLASSIC', 'ELITE', 'PRO')`
+      sql`${table.accountTier} IN ('CLASSIC', 'TURBO', 'ELITE', 'PRO')`
     ),
     check('positive_account_size', sql`${table.accountSize} > 0`),
     check('positive_evaluation_fee', sql`${table.evaluationFee} > 0`),

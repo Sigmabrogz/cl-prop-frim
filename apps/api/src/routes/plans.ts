@@ -10,6 +10,30 @@ import { eq, asc } from 'drizzle-orm';
 const plans = new Hono();
 
 // ===========================================
+// HELPER FUNCTIONS
+// ===========================================
+
+/**
+ * Transform database plan to frontend-friendly format
+ */
+function transformPlan(plan: typeof evaluationPlans.$inferSelect) {
+  const accountSize = parseFloat(plan.accountSize);
+  return {
+    ...plan,
+    // Computed fields for display convenience
+    price: parseFloat(plan.evaluationFee),
+    accountSizeNum: accountSize,
+    accountSize: accountSize, // Override string with number for frontend
+    profitTargetStep1: parseFloat(plan.step1ProfitTargetPct),
+    profitTargetStep2: plan.step2ProfitTargetPct ? parseFloat(plan.step2ProfitTargetPct) : undefined,
+    dailyLossLimit: parseFloat(plan.dailyLossLimitPct),
+    maxDrawdown: parseFloat(plan.maxDrawdownPct),
+    maxLeverage: Math.max(plan.btcEthMaxLeverage, plan.altcoinMaxLeverage),
+    profitSplit: plan.profitSplitPct,
+  };
+}
+
+// ===========================================
 // ROUTES
 // ===========================================
 
@@ -23,16 +47,21 @@ plans.get('/', async (c) => {
     orderBy: [asc(evaluationPlans.displayOrder), asc(evaluationPlans.accountSize)],
   });
 
-  // Group by evaluation type
+  const transformedPlans = planList.map(transformPlan);
+
+  // Group by evaluation type and tier
   const grouped = {
-    oneStep: planList.filter((p) => p.evaluationType === '1-STEP'),
-    twoStep: planList.filter((p) => p.evaluationType === '2-STEP'),
+    oneStep: {
+      classic: transformedPlans.filter((p) => p.evaluationType === '1-STEP' && p.accountTier === 'CLASSIC'),
+      turbo: transformedPlans.filter((p) => p.evaluationType === '1-STEP' && p.accountTier === 'TURBO'),
+    },
+    twoStep: transformedPlans.filter((p) => p.evaluationType === '2-STEP'),
   };
 
   return c.json({
-    plans: planList,
+    plans: transformedPlans,
     grouped,
-    count: planList.length,
+    count: transformedPlans.length,
   });
 });
 
@@ -51,6 +80,8 @@ plans.get('/:slug', async (c) => {
     return c.json({ error: 'Plan not found' }, 404);
   }
 
+  const transformedPlan = transformPlan(plan);
+
   // Calculate derived values for display
   const accountSize = parseFloat(plan.accountSize);
   const derived = {
@@ -63,7 +94,7 @@ plans.get('/:slug', async (c) => {
   };
 
   return c.json({
-    plan,
+    plan: transformedPlan,
     derived,
   });
 });

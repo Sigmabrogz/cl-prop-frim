@@ -17,10 +17,12 @@ import {
   TrendingUp,
   ArrowRight,
   Info,
+  Flame,
+  Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type EvaluationType = "1-step" | "2-step";
+type PlanType = "classic" | "turbo" | "2-step";
 
 interface Plan {
   name: string;
@@ -34,120 +36,262 @@ interface Plan {
     minDays: number;
     leverage: string;
     profitSplit: string;
+    trailingDrawdown: boolean;
   };
 }
 
-const plans: Record<EvaluationType, Plan[]> = {
-  "1-step": [
+const plans: Record<PlanType, Plan[]> = {
+  classic: [
     {
       name: "Starter",
-      accountSize: 10000,
-      price: 99,
+      accountSize: 2500,
+      price: 35,
       features: {
         profitTarget: "10%",
-        dailyLoss: "5%",
-        maxDrawdown: "10%",
+        dailyLoss: "4%",
+        maxDrawdown: "6%",
         minDays: 5,
-        leverage: "10x",
+        leverage: "5x",
         profitSplit: "80%",
+        trailingDrawdown: true,
+      },
+    },
+    {
+      name: "Basic",
+      accountSize: 5000,
+      price: 59,
+      features: {
+        profitTarget: "10%",
+        dailyLoss: "4%",
+        maxDrawdown: "6%",
+        minDays: 5,
+        leverage: "5x",
+        profitSplit: "80%",
+        trailingDrawdown: true,
       },
     },
     {
       name: "Standard",
-      accountSize: 25000,
-      price: 199,
+      accountSize: 10000,
+      price: 99,
       popular: true,
       features: {
         profitTarget: "10%",
-        dailyLoss: "5%",
-        maxDrawdown: "10%",
+        dailyLoss: "4%",
+        maxDrawdown: "6%",
         minDays: 5,
-        leverage: "10x",
-        profitSplit: "85%",
+        leverage: "5x",
+        profitSplit: "80%",
+        trailingDrawdown: true,
       },
     },
     {
       name: "Professional",
-      accountSize: 50000,
-      price: 349,
+      accountSize: 25000,
+      price: 199,
       features: {
         profitTarget: "10%",
-        dailyLoss: "5%",
-        maxDrawdown: "10%",
+        dailyLoss: "4%",
+        maxDrawdown: "6%",
         minDays: 5,
-        leverage: "10x",
-        profitSplit: "85%",
+        leverage: "5x",
+        profitSplit: "80%",
+        trailingDrawdown: true,
       },
     },
     {
       name: "Elite",
-      accountSize: 100000,
-      price: 549,
+      accountSize: 50000,
+      price: 349,
       features: {
         profitTarget: "10%",
-        dailyLoss: "5%",
-        maxDrawdown: "10%",
+        dailyLoss: "4%",
+        maxDrawdown: "6%",
         minDays: 5,
-        leverage: "10x",
-        profitSplit: "90%",
+        leverage: "5x",
+        profitSplit: "80%",
+        trailingDrawdown: true,
+      },
+    },
+  ],
+  turbo: [
+    {
+      name: "Starter",
+      accountSize: 2500,
+      price: 45,
+      features: {
+        profitTarget: "8%",
+        dailyLoss: "4%",
+        maxDrawdown: "4%",
+        minDays: 5,
+        leverage: "5x",
+        profitSplit: "70%",
+        trailingDrawdown: true,
+      },
+    },
+    {
+      name: "Basic",
+      accountSize: 5000,
+      price: 79,
+      features: {
+        profitTarget: "8%",
+        dailyLoss: "4%",
+        maxDrawdown: "4%",
+        minDays: 5,
+        leverage: "5x",
+        profitSplit: "70%",
+        trailingDrawdown: true,
+      },
+    },
+    {
+      name: "Standard",
+      accountSize: 10000,
+      price: 129,
+      popular: true,
+      features: {
+        profitTarget: "8%",
+        dailyLoss: "4%",
+        maxDrawdown: "4%",
+        minDays: 5,
+        leverage: "5x",
+        profitSplit: "70%",
+        trailingDrawdown: true,
+      },
+    },
+    {
+      name: "Professional",
+      accountSize: 25000,
+      price: 259,
+      features: {
+        profitTarget: "8%",
+        dailyLoss: "4%",
+        maxDrawdown: "4%",
+        minDays: 5,
+        leverage: "5x",
+        profitSplit: "70%",
+        trailingDrawdown: true,
+      },
+    },
+    {
+      name: "Elite",
+      accountSize: 50000,
+      price: 449,
+      features: {
+        profitTarget: "8%",
+        dailyLoss: "4%",
+        maxDrawdown: "4%",
+        minDays: 5,
+        leverage: "5x",
+        profitSplit: "70%",
+        trailingDrawdown: true,
+      },
+    },
+    {
+      name: "Master",
+      accountSize: 100000,
+      price: 749,
+      features: {
+        profitTarget: "8%",
+        dailyLoss: "4%",
+        maxDrawdown: "4%",
+        minDays: 5,
+        leverage: "5x",
+        profitSplit: "70%",
+        trailingDrawdown: true,
       },
     },
   ],
   "2-step": [
     {
       name: "Starter",
-      accountSize: 10000,
-      price: 79,
+      accountSize: 2500,
+      price: 25,
       features: {
-        profitTarget: "8% / 5%",
-        dailyLoss: "5%",
-        maxDrawdown: "10%",
+        profitTarget: "4% / 9%",
+        dailyLoss: "6%",
+        maxDrawdown: "9%",
         minDays: 5,
-        leverage: "10x",
+        leverage: "5x",
         profitSplit: "80%",
+        trailingDrawdown: true,
+      },
+    },
+    {
+      name: "Basic",
+      accountSize: 5000,
+      price: 45,
+      features: {
+        profitTarget: "4% / 9%",
+        dailyLoss: "6%",
+        maxDrawdown: "9%",
+        minDays: 5,
+        leverage: "5x",
+        profitSplit: "80%",
+        trailingDrawdown: true,
       },
     },
     {
       name: "Standard",
-      accountSize: 25000,
-      price: 159,
+      accountSize: 10000,
+      price: 79,
       popular: true,
       features: {
-        profitTarget: "8% / 5%",
-        dailyLoss: "5%",
-        maxDrawdown: "10%",
+        profitTarget: "4% / 9%",
+        dailyLoss: "6%",
+        maxDrawdown: "9%",
         minDays: 5,
-        leverage: "10x",
-        profitSplit: "85%",
+        leverage: "5x",
+        profitSplit: "80%",
+        trailingDrawdown: true,
       },
     },
     {
       name: "Professional",
-      accountSize: 50000,
-      price: 279,
+      accountSize: 25000,
+      price: 159,
       features: {
-        profitTarget: "8% / 5%",
-        dailyLoss: "5%",
-        maxDrawdown: "10%",
+        profitTarget: "4% / 9%",
+        dailyLoss: "6%",
+        maxDrawdown: "9%",
         minDays: 5,
-        leverage: "10x",
-        profitSplit: "85%",
+        leverage: "5x",
+        profitSplit: "80%",
+        trailingDrawdown: true,
       },
     },
     {
       name: "Elite",
-      accountSize: 100000,
-      price: 449,
+      accountSize: 50000,
+      price: 279,
       features: {
-        profitTarget: "8% / 5%",
-        dailyLoss: "5%",
-        maxDrawdown: "10%",
+        profitTarget: "4% / 9%",
+        dailyLoss: "6%",
+        maxDrawdown: "9%",
         minDays: 5,
-        leverage: "10x",
-        profitSplit: "90%",
+        leverage: "5x",
+        profitSplit: "80%",
+        trailingDrawdown: true,
       },
     },
   ],
+};
+
+const planDescriptions: Record<PlanType, { title: string; description: string; icon: React.ReactNode }> = {
+  classic: {
+    title: "Classic Challenge",
+    description: "Balanced rules with 10% profit target. Perfect for consistent traders.",
+    icon: <Zap className="w-4 h-4" />,
+  },
+  turbo: {
+    title: "Turbo Challenge",
+    description: "Lower 8% target with tighter 4% drawdown. Get funded faster.",
+    icon: <Flame className="w-4 h-4" />,
+  },
+  "2-step": {
+    title: "2-Step Challenge",
+    description: "Two phases with easier targets. Lowest entry fee.",
+    icon: <Layers className="w-4 h-4" />,
+  },
 };
 
 const includedFeatures = [
@@ -155,8 +299,8 @@ const includedFeatures = [
   "No time limits",
   "Weekly payouts",
   "24/7 support",
-  "Free retry on breach",
-  "Scale up to $200K",
+  "Trailing drawdown",
+  "Up to 90% profit split",
 ];
 
 function PricingCard({
@@ -164,7 +308,7 @@ function PricingCard({
   type,
 }: {
   plan: Plan;
-  type: EvaluationType;
+  type: PlanType;
 }) {
   return (
     <Card
@@ -214,7 +358,7 @@ function PricingCard({
         <div className="space-y-3">
           <div className="flex items-center justify-between py-2 border-b border-border/50">
             <span className="text-sm text-muted-foreground">Profit Target</span>
-            <span className="text-sm font-semibold">{plan.features.profitTarget}</span>
+            <span className="text-sm font-semibold text-profit">{plan.features.profitTarget}</span>
           </div>
           <div className="flex items-center justify-between py-2 border-b border-border/50">
             <span className="text-sm text-muted-foreground">Daily Loss Limit</span>
@@ -232,9 +376,15 @@ function PricingCard({
             <span className="text-sm text-muted-foreground">Max Leverage</span>
             <span className="text-sm font-semibold">{plan.features.leverage}</span>
           </div>
-          <div className="flex items-center justify-between py-2">
+          <div className="flex items-center justify-between py-2 border-b border-border/50">
             <span className="text-sm text-muted-foreground">Profit Split</span>
             <span className="text-sm font-bold text-profit">{plan.features.profitSplit}</span>
+          </div>
+          <div className="flex items-center justify-between py-2">
+            <span className="text-sm text-muted-foreground">Trailing Drawdown</span>
+            <Badge variant={plan.features.trailingDrawdown ? "success" : "secondary"} className="text-xs">
+              {plan.features.trailingDrawdown ? "Yes" : "No"}
+            </Badge>
           </div>
         </div>
       </CardContent>
@@ -257,7 +407,7 @@ function PricingCard({
 }
 
 export function Pricing() {
-  const [evaluationType, setEvaluationType] = useState<EvaluationType>("1-step");
+  const [planType, setPlanType] = useState<PlanType>("classic");
 
   return (
     <section id="pricing" className="py-24 md:py-32 relative overflow-hidden">
@@ -278,50 +428,64 @@ export function Pricing() {
           </h2>
 
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-10">
-            Select an account size that matches your trading style. No hidden fees, no surprises.
+            Select a challenge type that matches your trading style. No hidden fees, no surprises.
           </p>
 
-          {/* Evaluation Type Toggle */}
+          {/* 3-Way Plan Type Toggle */}
           <div className="inline-flex items-center gap-1 p-1.5 rounded-2xl bg-card border border-border">
             <button
-              onClick={() => setEvaluationType("1-step")}
+              onClick={() => setPlanType("classic")}
               className={cn(
-                "relative px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300",
-                evaluationType === "1-step"
+                "relative px-5 py-3 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center gap-2",
+                planType === "classic"
                   ? "bg-primary text-primary-foreground shadow-lg"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <span className="relative z-10">1-Step Challenge</span>
-              {evaluationType === "1-step" && (
-                <Zap className="absolute top-1 right-1 w-3 h-3 text-primary-foreground/60" />
-              )}
+              <Zap className="w-4 h-4" />
+              Classic
             </button>
             <button
-              onClick={() => setEvaluationType("2-step")}
+              onClick={() => setPlanType("turbo")}
               className={cn(
-                "relative px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300",
-                evaluationType === "2-step"
+                "relative px-5 py-3 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center gap-2",
+                planType === "turbo"
+                  ? "bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Flame className="w-4 h-4" />
+              Turbo
+            </button>
+            <button
+              onClick={() => setPlanType("2-step")}
+              className={cn(
+                "relative px-5 py-3 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center gap-2",
+                planType === "2-step"
                   ? "bg-primary text-primary-foreground shadow-lg"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              2-Step Challenge
+              <Layers className="w-4 h-4" />
+              2-Step
             </button>
           </div>
 
           <p className="text-sm text-muted-foreground mt-4 flex items-center justify-center gap-2">
             <Info className="h-4 w-4" />
-            {evaluationType === "1-step"
-              ? "Pass one phase and get funded immediately"
-              : "Lower entry fee with two evaluation phases"}
+            {planDescriptions[planType].description}
           </p>
         </div>
 
         {/* Pricing Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto mb-16">
-          {plans[evaluationType].map((plan) => (
-            <PricingCard key={plan.accountSize} plan={plan} type={evaluationType} />
+        <div className={cn(
+          "grid gap-6 max-w-7xl mx-auto mb-16",
+          plans[planType].length <= 4 ? "md:grid-cols-2 lg:grid-cols-4" : 
+          plans[planType].length === 5 ? "md:grid-cols-2 lg:grid-cols-5" : 
+          "md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
+        )}>
+          {plans[planType].map((plan) => (
+            <PricingCard key={plan.accountSize} plan={plan} type={planType} />
           ))}
         </div>
 

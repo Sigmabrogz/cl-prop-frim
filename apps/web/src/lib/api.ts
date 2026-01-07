@@ -352,19 +352,38 @@ export interface TradingAccount {
 }
 
 export interface EvaluationPlan {
-  id: string;
+  id: number;
   name: string;
-  accountSize: number;
+  slug: string;
+  description?: string;
+  evaluationType: '1-STEP' | '2-STEP';
+  accountTier: 'CLASSIC' | 'TURBO' | 'ELITE' | 'PRO';
+  accountSize: number;  // Computed from API (converted from string)
+  evaluationFee: string;
+  step1ProfitTargetPct: string;
+  step2ProfitTargetPct?: string | null;
+  dailyLossLimitPct: string;
+  maxDrawdownPct: string;
+  trailingDrawdown: boolean;
+  minTradingDays: number;
+  maxDailyTrades?: number | null;
+  minTradeDurationSeconds: number;
+  btcEthMaxLeverage: number;
+  altcoinMaxLeverage: number;
+  profitSplitPct: number;
+  maxProfitFromSingleTradePct?: string | null;
+  isActive: boolean;
+  displayOrder: number;
+  createdAt: string;
+  updatedAt: string;
+  // Computed fields for display convenience
   price: number;
-  evaluationType: '1-step' | '2-step';
   profitTargetStep1: number;
   profitTargetStep2?: number;
   dailyLossLimit: number;
   maxDrawdown: number;
-  minTradingDays: number;
   maxLeverage: number;
   profitSplit: number;
-  isActive: boolean;
 }
 
 export interface Order {

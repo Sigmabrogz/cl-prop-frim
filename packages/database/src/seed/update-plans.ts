@@ -1,19 +1,37 @@
 // ===========================================
-// DATABASE SEED SCRIPT
+// UPDATE EVALUATION PLANS SCRIPT
 // ===========================================
+// This script removes old plans and inserts the new 16 plans
 
 import { db } from '../index.js';
-import { evaluationPlans, marketPairs, users } from '../schema/index.js';
-import { eq } from 'drizzle-orm';
+import { evaluationPlans, tradingAccounts } from '../schema/index.js';
+import { eq, sql, isNotNull } from 'drizzle-orm';
 
-async function seed() {
-  console.log('🌱 Seeding database...\n');
+async function updatePlans() {
+  console.log('🔄 Updating evaluation plans...\n');
 
-  // ===========================================
-  // SEED EVALUATION PLANS
-  // ===========================================
-  console.log('📋 Seeding evaluation plans...');
+  // First, check if any accounts are using old plans
+  const accountsWithPlans = await db.query.tradingAccounts.findMany({
+    columns: { id: true },
+    where: isNotNull(tradingAccounts.planId),
+  });
+  
+  const accountCount = accountsWithPlans.length;
+  
+  if (accountCount > 0) {
+    console.log(`⚠️  Warning: ${accountCount} accounts are linked to existing plans.`);
+    console.log('   Skipping plan deletion to preserve data integrity.');
+    console.log('   New plans will be added alongside existing ones.\n');
+  }
 
+  // Delete old plans (only if no accounts are using them)
+  if (accountCount === 0) {
+    console.log('🗑️  Deleting old plans...');
+    await db.delete(evaluationPlans);
+    console.log('   ✓ Old plans deleted\n');
+  }
+
+  // New plans data
   const plans = [
     // ===========================================
     // CLASSIC PLANS (1-STEP) - 10% profit target, 4% daily, 6% max DD
@@ -337,116 +355,62 @@ async function seed() {
     },
   ];
 
+  console.log('📋 Inserting new plans...');
+  
   for (const plan of plans) {
+    // Check if plan already exists
     const existing = await db.query.evaluationPlans.findFirst({
       where: eq(evaluationPlans.slug, plan.slug),
     });
 
-    if (!existing) {
+    if (existing) {
+      // Update existing plan
+      await db.update(evaluationPlans)
+        .set({
+          ...plan,
+          updatedAt: new Date(),
+        })
+        .where(eq(evaluationPlans.slug, plan.slug));
+      console.log(`   ✓ Updated: ${plan.name}`);
+    } else {
+      // Insert new plan
       await db.insert(evaluationPlans).values(plan);
-      console.log(`  ✓ Created plan: ${plan.name}`);
-    } else {
-      console.log(`  - Plan exists: ${plan.name}`);
+      console.log(`   ✓ Created: ${plan.name}`);
     }
   }
 
-  // ===========================================
-  // SEED MARKET PAIRS
-  // ===========================================
-  console.log('\n📈 Seeding market pairs...');
-
-  const pairs = [
-    { symbol: 'BTCUSDT', baseCurrency: 'BTC', quoteCurrency: 'USDT', displayName: 'Bitcoin', category: 'major', spreadBps: 5, maxLeverage: 10, minQuantity: '0.001', quantityPrecision: 3, pricePrecision: 2 },
-    { symbol: 'ETHUSDT', baseCurrency: 'ETH', quoteCurrency: 'USDT', displayName: 'Ethereum', category: 'major', spreadBps: 5, maxLeverage: 10, minQuantity: '0.01', quantityPrecision: 2, pricePrecision: 2 },
-    { symbol: 'BNBUSDT', baseCurrency: 'BNB', quoteCurrency: 'USDT', displayName: 'BNB', category: 'major', spreadBps: 8, maxLeverage: 10, minQuantity: '0.01', quantityPrecision: 2, pricePrecision: 2 },
-    { symbol: 'SOLUSDT', baseCurrency: 'SOL', quoteCurrency: 'USDT', displayName: 'Solana', category: 'altcoin', spreadBps: 10, maxLeverage: 5, minQuantity: '0.1', quantityPrecision: 1, pricePrecision: 2 },
-    { symbol: 'XRPUSDT', baseCurrency: 'XRP', quoteCurrency: 'USDT', displayName: 'Ripple', category: 'altcoin', spreadBps: 10, maxLeverage: 5, minQuantity: '1', quantityPrecision: 0, pricePrecision: 4 },
-    { symbol: 'ADAUSDT', baseCurrency: 'ADA', quoteCurrency: 'USDT', displayName: 'Cardano', category: 'altcoin', spreadBps: 12, maxLeverage: 5, minQuantity: '1', quantityPrecision: 0, pricePrecision: 4 },
-    { symbol: 'DOGEUSDT', baseCurrency: 'DOGE', quoteCurrency: 'USDT', displayName: 'Dogecoin', category: 'meme', spreadBps: 15, maxLeverage: 5, minQuantity: '10', quantityPrecision: 0, pricePrecision: 5 },
-    { symbol: 'DOTUSDT', baseCurrency: 'DOT', quoteCurrency: 'USDT', displayName: 'Polkadot', category: 'altcoin', spreadBps: 10, maxLeverage: 5, minQuantity: '0.1', quantityPrecision: 1, pricePrecision: 3 },
-    { symbol: 'LINKUSDT', baseCurrency: 'LINK', quoteCurrency: 'USDT', displayName: 'Chainlink', category: 'defi', spreadBps: 10, maxLeverage: 5, minQuantity: '0.1', quantityPrecision: 1, pricePrecision: 3 },
-    { symbol: 'MATICUSDT', baseCurrency: 'MATIC', quoteCurrency: 'USDT', displayName: 'Polygon', category: 'altcoin', spreadBps: 12, maxLeverage: 5, minQuantity: '1', quantityPrecision: 0, pricePrecision: 4 },
-    { symbol: 'AVAXUSDT', baseCurrency: 'AVAX', quoteCurrency: 'USDT', displayName: 'Avalanche', category: 'altcoin', spreadBps: 10, maxLeverage: 5, minQuantity: '0.1', quantityPrecision: 1, pricePrecision: 2 },
-    { symbol: 'LTCUSDT', baseCurrency: 'LTC', quoteCurrency: 'USDT', displayName: 'Litecoin', category: 'major', spreadBps: 8, maxLeverage: 10, minQuantity: '0.01', quantityPrecision: 2, pricePrecision: 2 },
-    { symbol: 'UNIUSDT', baseCurrency: 'UNI', quoteCurrency: 'USDT', displayName: 'Uniswap', category: 'defi', spreadBps: 12, maxLeverage: 5, minQuantity: '0.1', quantityPrecision: 1, pricePrecision: 3 },
-    { symbol: 'ATOMUSDT', baseCurrency: 'ATOM', quoteCurrency: 'USDT', displayName: 'Cosmos', category: 'altcoin', spreadBps: 10, maxLeverage: 5, minQuantity: '0.1', quantityPrecision: 1, pricePrecision: 3 },
-    { symbol: 'XLMUSDT', baseCurrency: 'XLM', quoteCurrency: 'USDT', displayName: 'Stellar', category: 'altcoin', spreadBps: 12, maxLeverage: 5, minQuantity: '10', quantityPrecision: 0, pricePrecision: 5 },
-  ];
-
-  for (const pair of pairs) {
-    const existing = await db.query.marketPairs.findFirst({
-      where: eq(marketPairs.symbol, pair.symbol),
-    });
-
-    if (!existing) {
-      await db.insert(marketPairs).values(pair);
-      console.log(`  ✓ Created pair: ${pair.symbol}`);
-    } else {
-      console.log(`  - Pair exists: ${pair.symbol}`);
+  // Deactivate old plans that are no longer in the new list
+  const newSlugs = plans.map(p => p.slug);
+  const allPlans = await db.query.evaluationPlans.findMany();
+  
+  for (const plan of allPlans) {
+    if (!newSlugs.includes(plan.slug) && plan.isActive) {
+      await db.update(evaluationPlans)
+        .set({ isActive: false, updatedAt: new Date() })
+        .where(eq(evaluationPlans.id, plan.id));
+      console.log(`   ⚠️  Deactivated old plan: ${plan.name}`);
     }
   }
 
-  // ===========================================
-  // SEED USERS (for testing)
-  // ===========================================
-  console.log('\n👤 Seeding test users...');
-
-  // Pre-computed argon2id hashes (generated with memoryCost=65536, timeCost=3, parallelism=4)
-  // Admin123!
-  const adminPasswordHash = '$argon2id$v=19$m=65536,t=3,p=4$PH4wrfBAS7NKKYQCzhJhfA$p9jZVK9Sj8iehX1KjMIAG79pHaevmosEBD8NHx7zGzE';
-  // Test123!
-  const testUserPasswordHash = '$argon2id$v=19$m=65536,t=3,p=4$nTxV+gD8NgV+sbvuRD3gTw$BghebM79aNea2p6kbu1/YIheM3BuMX+tlOAJOGpGB3A';
-
-  // Create admin user
-  const adminEmail = 'admin@propfirm.local';
-  const existingAdmin = await db.query.users.findFirst({
-    where: eq(users.email, adminEmail),
+  console.log('\n✅ Plan update complete!\n');
+  
+  // Show summary
+  const finalPlans = await db.query.evaluationPlans.findMany({
+    where: eq(evaluationPlans.isActive, true),
   });
-
-  if (!existingAdmin) {
-    await db.insert(users).values({
-      email: adminEmail,
-      username: 'admin',
-      passwordHash: adminPasswordHash,
-      fullName: 'Platform Admin',
-      role: 'admin',
-      status: 'active',
-      emailVerifiedAt: new Date(),
-    });
-    console.log(`  ✓ Created admin user: ${adminEmail} (password: Admin123!)`);
-  } else {
-    console.log(`  - Admin user exists: ${adminEmail}`);
-  }
-
-  // Create test user
-  const testEmail = 'test@propfirm.local';
-  const existingTestUser = await db.query.users.findFirst({
-    where: eq(users.email, testEmail),
-  });
-
-  if (!existingTestUser) {
-    await db.insert(users).values({
-      email: testEmail,
-      username: 'testuser',
-      passwordHash: testUserPasswordHash,
-      fullName: 'Test User',
-      role: 'user',
-      status: 'active',
-      emailVerifiedAt: new Date(),
-    });
-    console.log(`  ✓ Created test user: ${testEmail} (password: Test123!)`);
-  } else {
-    console.log(`  - Test user exists: ${testEmail}`);
-  }
-
-  console.log('\nDatabase seeding complete!\n');
+  
+  console.log('📊 Summary:');
+  console.log(`   Total active plans: ${finalPlans.length}`);
+  console.log(`   Classic 1-Step: ${finalPlans.filter(p => p.evaluationType === '1-STEP' && p.accountTier === 'CLASSIC').length}`);
+  console.log(`   Turbo 1-Step: ${finalPlans.filter(p => p.evaluationType === '1-STEP' && p.accountTier === 'TURBO').length}`);
+  console.log(`   2-Step: ${finalPlans.filter(p => p.evaluationType === '2-STEP').length}`);
 }
 
-// Run seed
-seed()
+// Run the update
+updatePlans()
   .then(() => process.exit(0))
   .catch((error) => {
-    console.error('Seed failed:', error);
+    console.error('Update failed:', error);
     process.exit(1);
   });
 
