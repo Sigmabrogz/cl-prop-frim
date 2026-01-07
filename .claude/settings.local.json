@@ -15,7 +15,11 @@
       "Bash(DATABASE_URL=\"postgresql://propfirm:propfirm_secret@localhost:5432/propfirm\" bun run:*)",
       "Bash(DATABASE_URL=\"postgresql://propfirm:propfirm_secret@localhost:5432/propfirm\" bun -e:*)",
       "Bash(pnpm dev)",
-      "Bash(pnpm add:*)"
+      "Bash(pnpm add:*)",
+      "Bash(chmod:*)",
+      "Bash(xargs -I {} bash -c 'echo \"\"\"\"=== {} ===\"\"\"\" && head -20 {}')",
+      "Bash(npm run typecheck)",
+      "Bash(grep:*)"
     ]
   }
 }

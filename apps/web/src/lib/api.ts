@@ -409,6 +409,7 @@ export interface Trade {
   closeReason: string;
   grossPnl: string;
   fees: string;
+  fundingFee: string;
   netPnl: string;
   holdDurationSeconds: number;
 }

@@ -107,8 +107,8 @@ export function PriceTicker({
   }
 
   const midPrice = (price.bid + price.ask) / 2;
-  // Simulated 24h change for demo
-  const change24h = ((midPrice % 1000) / 1000 - 0.5) * 10;
+  // Real 24h change from Binance
+  const change24h = price.priceChangePercent24h || 0;
   const isPositive = change24h >= 0;
 
   // Format price based on value
@@ -222,14 +222,13 @@ export function PriceDisplay({ symbol, showDetails = true }: { symbol: string; s
     );
   }
 
-  // Simulated 24h change
+  // Real 24h change from Binance
   const midPrice = (price.bid + price.ask) / 2;
-  const change24h = ((midPrice % 1000) / 1000 - 0.5) * 10;
+  const change24h = price.priceChangePercent24h || 0;
   const isPositive = change24h >= 0;
 
-  // Simulated funding rate (TODO: Get from Binance API)
-  // In perpetual futures, funding rate is typically between -0.1% and 0.1% per 8 hours
-  const fundingRate = ((midPrice % 100) / 100 - 0.5) * 0.002; // -0.1% to 0.1%
+  // Real funding rate from Binance Futures
+  const fundingRate = price.fundingRate || 0;
   const isFundingPositive = fundingRate >= 0;
 
   return (
@@ -321,7 +320,8 @@ export function MiniPriceTicker({ symbol }: { symbol: string }) {
   }
 
   const midPrice = (price.bid + price.ask) / 2;
-  const change24h = ((midPrice % 1000) / 1000 - 0.5) * 10;
+  // Real 24h change from Binance
+  const change24h = price.priceChangePercent24h || 0;
   const isPositive = change24h >= 0;
 
   return (

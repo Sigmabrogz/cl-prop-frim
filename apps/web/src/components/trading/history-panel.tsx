@@ -131,7 +131,11 @@ function OrderRow({ order }: { order: Order }) {
 
 // Trade History Row
 function TradeRow({ trade }: { trade: Trade }) {
+  const grossPnl = parseFloat(trade.grossPnl);
   const netPnl = parseFloat(trade.netPnl);
+  const tradingFees = parseFloat(trade.fees || '0');
+  const fundingFee = parseFloat(trade.fundingFee || '0');
+  const totalFees = tradingFees + fundingFee;
   const isWin = netPnl > 0;
 
   return (
@@ -192,14 +196,35 @@ function TradeRow({ trade }: { trade: Trade }) {
         </div>
       </div>
 
+      {/* P&L Breakdown */}
+      <div className="mt-2 pt-2 border-t border-border/50 grid grid-cols-4 gap-2 text-xs">
+        <div>
+          <p className="text-muted-foreground">Gross P&L</p>
+          <p className={cn("font-mono font-medium", getPnLColor(grossPnl))}>
+            {grossPnl >= 0 ? "+" : ""}{formatCurrency(grossPnl)}
+          </p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Trading Fees</p>
+          <p className="font-mono text-loss">-{formatCurrency(tradingFees)}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Funding</p>
+          <p className={cn("font-mono", fundingFee >= 0 ? "text-loss" : "text-profit")}>
+            {fundingFee >= 0 ? "-" : "+"}{formatCurrency(Math.abs(fundingFee))}
+          </p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Net P&L</p>
+          <p className={cn("font-mono font-semibold", getPnLColor(netPnl))}>
+            {netPnl >= 0 ? "+" : ""}{formatCurrency(netPnl)}
+          </p>
+        </div>
+      </div>
+
       {/* Close reason */}
-      <div className="mt-2 flex items-center justify-between text-xs">
-        <span className="text-muted-foreground">
-          Closed by: <span className="font-medium text-foreground">{trade.closeReason}</span>
-        </span>
-        <span className="text-muted-foreground">
-          Fees: <span className="font-mono text-foreground">{formatCurrency(parseFloat(trade.fees))}</span>
-        </span>
+      <div className="mt-2 text-xs text-muted-foreground">
+        Closed by: <span className="font-medium text-foreground">{trade.closeReason}</span>
       </div>
     </div>
   );

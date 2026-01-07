@@ -40,6 +40,10 @@ export const positions = pgTable(
     // Fees
     entryFee: numeric('entry_fee', { precision: 18, scale: 8 }).notNull(),
 
+    // Accumulated funding fees (positive = paid, negative = received)
+    accumulatedFunding: numeric('accumulated_funding', { precision: 18, scale: 8 }).default('0').notNull(),
+    lastFundingAt: timestamp('last_funding_at', { withTimezone: true }),
+
     // TP/SL
     takeProfit: numeric('take_profit', { precision: 18, scale: 8 }),
     stopLoss: numeric('stop_loss', { precision: 18, scale: 8 }),

@@ -193,13 +193,23 @@ async function executeClose(
   const exitValue = quantityToClose * closePrice;
   const exitFee = exitValue * 0.0005; // 0.05% = 5 bps
 
-  // 4. Calculate net P&L
-  // For partial close, calculate proportional entry fee
+  // 4. Calculate net P&L including funding
+  // For partial close, calculate proportional entry fee and funding
   const entryFeeForClosed = isPartialClose
     ? position.entryFee * (quantityToClose / position.quantity)
     : position.entryFee;
-  const totalFees = entryFeeForClosed + exitFee;
-  const netPnl = grossPnl - exitFee;
+
+  // Funding fees (proportional for partial close)
+  const fundingFeeForClosed = isPartialClose
+    ? position.accumulatedFunding * (quantityToClose / position.quantity)
+    : position.accumulatedFunding;
+
+  // Total fees = entry fee + exit fee + funding fee (not including in totalFees for backwards compat)
+  const tradingFees = entryFeeForClosed + exitFee;
+  const totalFees = tradingFees; // tradingFees only (for backwards compat)
+
+  // Net P&L = Gross P&L - Exit Fee - Funding Fee
+  const netPnl = grossPnl - exitFee - fundingFeeForClosed;
 
   // 5. Calculate duration
   const durationSeconds = Math.floor((now.getTime() - position.openedAt.getTime()) / 1000);
@@ -240,6 +250,7 @@ async function executeClose(
     const remainingMargin = position.marginUsed - marginReleased;
     const remainingEntryFee = position.entryFee - entryFeeForClosed;
     const remainingEntryValue = remainingQuantity * position.entryPrice;
+    const remainingFunding = position.accumulatedFunding - fundingFeeForClosed;
 
     updatedPosition = {
       ...position,
@@ -247,6 +258,7 @@ async function executeClose(
       marginUsed: remainingMargin,
       entryFee: remainingEntryFee,
       entryValue: remainingEntryValue,
+      accumulatedFunding: remainingFunding,
     };
 
     positionManager.updatePosition(position.id, updatedPosition);
@@ -273,6 +285,7 @@ async function executeClose(
     closeReason,
     exitValue,
     exitFee,
+    fundingFee: fundingFeeForClosed,
     grossPnl,
     totalFees,
     netPnl,
@@ -338,6 +351,7 @@ interface TradeData {
   closeReason: CloseReason;
   exitValue: number;
   exitFee: number;
+  fundingFee: number;
   grossPnl: number;
   totalFees: number;
   netPnl: number;
@@ -391,13 +405,14 @@ async function updatePositionInDb(positionId: string, position: Position): Promi
       marginUsed: position.marginUsed.toString(),
       entryFee: position.entryFee.toString(),
       entryValue: position.entryValue.toString(),
+      accumulatedFunding: position.accumulatedFunding.toString(),
     })
     .where(eq(positions.id, positionId));
 }
 
 async function persistTradeToDb(data: TradeData): Promise<void> {
-  const { tradeId, position, closePrice, closeReason, exitValue, exitFee, grossPnl, totalFees, netPnl, durationSeconds, binancePrice, closedAt } = data;
-  
+  const { tradeId, position, closePrice, closeReason, exitValue, exitFee, fundingFee, grossPnl, totalFees, netPnl, durationSeconds, binancePrice, closedAt } = data;
+
   await db.insert(trades).values({
     id: tradeId,
     accountId: position.accountId,
@@ -418,6 +433,7 @@ async function persistTradeToDb(data: TradeData): Promise<void> {
     closeReason,
     grossPnl: grossPnl.toString(),
     totalFees: totalFees.toString(),
+    fundingFee: fundingFee.toString(),
     netPnl: netPnl.toString(),
     durationSeconds,
     binancePriceAtEntry: position.entryPrice.toString(), // TODO: Store actual binance price

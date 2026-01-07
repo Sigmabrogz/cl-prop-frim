@@ -50,6 +50,7 @@ export const trades = pgTable(
     // P&L
     grossPnl: numeric('gross_pnl', { precision: 18, scale: 8 }).notNull(),
     totalFees: numeric('total_fees', { precision: 18, scale: 8 }).notNull(),
+    fundingFee: numeric('funding_fee', { precision: 18, scale: 8 }).default('0').notNull(),
     netPnl: numeric('net_pnl', { precision: 18, scale: 8 }).notNull(),
 
     // Duration

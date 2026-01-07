@@ -80,12 +80,9 @@ class OrderTriggerEngine {
     if (!this.priceEngine) return;
 
     const orderManager = getOrderManager();
-    const symbols = this.priceEngine.getSubscribedSymbols();
+    const allPrices = this.priceEngine.getAllPrices();
 
-    for (const symbol of symbols) {
-      const price = this.priceEngine.getPrice(symbol);
-      if (!price) continue;
-
+    for (const [symbol, price] of allPrices) {
       // Skip if price is stale
       if (Date.now() - price.timestamp > 5000) continue;
 

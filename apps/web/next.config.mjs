@@ -2,6 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['geist'],
+  output: 'standalone', // Optimized for Docker/Railway deployment
   images: {
     remotePatterns: [
       {

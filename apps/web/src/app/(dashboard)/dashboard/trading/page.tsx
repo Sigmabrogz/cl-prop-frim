@@ -21,9 +21,15 @@ import {
   Wallet,
   Activity,
   Maximize2,
+  Minimize2,
   Settings,
   Zap,
   Search,
+  X,
+  Clock,
+  BarChart3,
+  CandlestickChart,
+  LineChart,
 } from "lucide-react";
 
 const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "DOGEUSDT", "ADAUSDT", "AVAXUSDT"];
@@ -42,11 +48,15 @@ function TradingContent() {
   const [prefillPrice, setPrefillPrice] = useState<number | undefined>();
   const [prefillQuantity, setPrefillQuantity] = useState<number | undefined>();
   const [searchQuery, setSearchQuery] = useState("");
+  const [isChartFullscreen, setIsChartFullscreen] = useState(false);
+  const [showChartSettings, setShowChartSettings] = useState(false);
+  const [chartInterval, setChartInterval] = useState("1"); // 1 minute default
+  const [chartType, setChartType] = useState<"candle" | "line" | "bar">("candle");
 
   const isMobile = useIsMobile();
 
   const { isConnected, isAuthenticated, setSelectedAccountId } = useTradingStore();
-  const { subscribe, unsubscribe, getPositions } = useWebSocket();
+  const { subscribe, unsubscribe, getPositions, subscribeOrderBook, unsubscribeOrderBook } = useWebSocket();
 
   // Keyboard shortcuts
   useTradingShortcuts({
@@ -94,6 +104,14 @@ function TradingContent() {
       return () => unsubscribe(SYMBOLS);
     }
   }, [isAuthenticated, subscribe, unsubscribe]);
+
+  // Subscribe to order book for selected symbol
+  useEffect(() => {
+    if (isAuthenticated && selectedSymbol) {
+      subscribeOrderBook([selectedSymbol]);
+      return () => unsubscribeOrderBook([selectedSymbol]);
+    }
+  }, [isAuthenticated, selectedSymbol, subscribeOrderBook, unsubscribeOrderBook]);
 
   // Load positions for selected account
   useEffect(() => {
@@ -223,24 +241,157 @@ function TradingContent() {
     </div>
   );
 
+  // Chart intervals
+  const CHART_INTERVALS = [
+    { value: "1", label: "1m" },
+    { value: "5", label: "5m" },
+    { value: "15", label: "15m" },
+    { value: "60", label: "1H" },
+    { value: "240", label: "4H" },
+    { value: "D", label: "1D" },
+    { value: "W", label: "1W" },
+  ];
+
   // Chart Panel
   const chart = (
-    <div className="h-full flex flex-col">
+    <div className={cn(
+      "h-full flex flex-col",
+      isChartFullscreen && "fixed inset-0 z-50 bg-background"
+    )}>
       {/* Chart Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-background-secondary/30">
-        <PriceDisplay symbol={selectedSymbol} />
+        <div className="flex items-center gap-4">
+          <PriceDisplay symbol={selectedSymbol} />
+          {/* Interval selector */}
+          <div className="hidden md:flex items-center gap-1 px-2 py-1 rounded-lg bg-background-tertiary/50">
+            {CHART_INTERVALS.map((interval) => (
+              <button
+                key={interval.value}
+                onClick={() => setChartInterval(interval.value)}
+                className={cn(
+                  "px-2 py-1 text-xs font-medium rounded transition-colors",
+                  chartInterval === interval.value
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background-hover"
+                )}
+              >
+                {interval.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon-xs">
-            <Settings className="h-3.5 w-3.5" />
+          {/* Chart Settings */}
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => setShowChartSettings(!showChartSettings)}
+              className={showChartSettings ? "bg-background-tertiary" : ""}
+            >
+              <Settings className="h-3.5 w-3.5" />
+            </Button>
+
+            {showChartSettings && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowChartSettings(false)}
+                />
+                <div className="absolute right-0 top-full mt-2 w-48 z-50 bg-card border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
+                  <div className="p-2 border-b border-border">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2">
+                      Chart Type
+                    </p>
+                  </div>
+                  <div className="p-2 space-y-1">
+                    <button
+                      onClick={() => { setChartType("candle"); setShowChartSettings(false); }}
+                      className={cn(
+                        "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors",
+                        chartType === "candle" ? "bg-primary/10 text-primary" : "hover:bg-background-tertiary"
+                      )}
+                    >
+                      <CandlestickChart className="h-4 w-4" />
+                      Candlestick
+                    </button>
+                    <button
+                      onClick={() => { setChartType("line"); setShowChartSettings(false); }}
+                      className={cn(
+                        "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors",
+                        chartType === "line" ? "bg-primary/10 text-primary" : "hover:bg-background-tertiary"
+                      )}
+                    >
+                      <LineChart className="h-4 w-4" />
+                      Line
+                    </button>
+                    <button
+                      onClick={() => { setChartType("bar"); setShowChartSettings(false); }}
+                      className={cn(
+                        "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors",
+                        chartType === "bar" ? "bg-primary/10 text-primary" : "hover:bg-background-tertiary"
+                      )}
+                    >
+                      <BarChart3 className="h-4 w-4" />
+                      Bar
+                    </button>
+                  </div>
+                  <div className="p-2 border-t border-border">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 mb-2">
+                      Timeframe
+                    </p>
+                    <div className="grid grid-cols-4 gap-1 px-2">
+                      {CHART_INTERVALS.map((interval) => (
+                        <button
+                          key={interval.value}
+                          onClick={() => { setChartInterval(interval.value); setShowChartSettings(false); }}
+                          className={cn(
+                            "px-2 py-1.5 text-xs font-medium rounded transition-colors",
+                            chartInterval === interval.value
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-background-tertiary text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          {interval.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Fullscreen Toggle */}
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => setIsChartFullscreen(!isChartFullscreen)}
+            title={isChartFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+          >
+            {isChartFullscreen ? (
+              <Minimize2 className="h-3.5 w-3.5" />
+            ) : (
+              <Maximize2 className="h-3.5 w-3.5" />
+            )}
           </Button>
-          <Button variant="ghost" size="icon-xs">
-            <Maximize2 className="h-3.5 w-3.5" />
-          </Button>
+
+          {/* Close button in fullscreen mode */}
+          {isChartFullscreen && (
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => setIsChartFullscreen(false)}
+              className="ml-2"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
       {/* Chart */}
       <div className="flex-1 min-h-0">
-        <TradingChart symbol={selectedSymbol} className="h-full" />
+        <TradingChart symbol={selectedSymbol} interval={chartInterval} className="h-full" />
       </div>
     </div>
   );

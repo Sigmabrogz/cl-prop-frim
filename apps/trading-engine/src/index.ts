@@ -6,11 +6,14 @@
 import { startWebSocketServer } from './websocket/server.js';
 import { startPriceEngine } from './price/price-engine.js';
 import { startBinanceFeed } from './price/binance-feed.js';
+import { startMarketDataService } from './price/market-data-service.js';
+import { startOrderBookFeed } from './price/orderbook-feed.js';
 import { startBackgroundWorker } from './workers/background-worker.js';
 import { startRiskEngine } from './risk/risk-engine.js';
 import { startTPSLEngine } from './triggers/tpsl-engine.js';
 import { startLiquidationEngine } from './triggers/liquidation-engine.js';
 import { startDailyResetWorker } from './workers/daily-reset-worker.js';
+import { startFundingWorker } from './workers/funding-worker.js';
 import { startEvaluationChecker } from './risk/evaluation-checker.js';
 import { initializePositionManager } from './engine/position-manager.js';
 import { accountManager } from './engine/account-manager.js';
@@ -51,7 +54,7 @@ async function main() {
 
   try {
     // 1. Check Redis connection
-    console.log('[1/11] Checking Redis connection...');
+    console.log('[1/14] Checking Redis connection...');
     const redisHealthy = await checkRedisHealth();
     if (!redisHealthy) {
       throw new Error('Redis is not available');
@@ -59,56 +62,71 @@ async function main() {
     console.log('       ✓ Redis connected');
 
     // 2. Initialize Account Manager (in-memory account state)
-    console.log('[2/11] Initializing Account Manager...');
+    console.log('[2/14] Initializing Account Manager...');
     await accountManager.initialize();
     console.log('       ✓ Account Manager initialized');
 
     // 3. Initialize Position Manager (load from DB)
-    console.log('[3/11] Initializing Position Manager...');
+    console.log('[3/14] Initializing Position Manager...');
     await initializePositionManager();
     console.log('       ✓ Position Manager initialized');
 
     // 4. Start Price Engine (in-memory price state)
-    console.log('[4/11] Starting Price Engine...');
+    console.log('[4/14] Starting Price Engine...');
     const priceEngine = startPriceEngine();
     console.log('       ✓ Price Engine started');
 
     // 5. Start Binance Feed (connects to Binance WebSocket)
-    console.log('[5/11] Starting Binance Price Feed...');
+    console.log('[5/14] Starting Binance Price Feed...');
     const binanceFeed = await startBinanceFeed(priceEngine);
     console.log('       ✓ Binance Feed connected');
 
-    // 6. Start WebSocket Server (client connections)
-    console.log('[6/11] Starting WebSocket Server...');
-    const wsServer = startWebSocketServer(WS_PORT, priceEngine);
+    // 6. Start Market Data Service (24h stats, funding rates)
+    console.log('[6/14] Starting Market Data Service...');
+    const marketDataService = startMarketDataService();
+    console.log('       ✓ Market Data Service started');
+
+    // 7. Start Order Book Feed (real-time order book from Binance)
+    console.log('[7/14] Starting Order Book Feed...');
+    const orderBookFeed = await startOrderBookFeed();
+    console.log('       ✓ Order Book Feed connected');
+
+    // 8. Start WebSocket Server (client connections)
+    console.log('[8/14] Starting WebSocket Server...');
+    const wsServer = startWebSocketServer(WS_PORT, priceEngine, marketDataService, orderBookFeed);
     console.log(`       ✓ WebSocket Server listening on port ${WS_PORT}`);
 
-    // 7. Start TP/SL Engine (synchronous triggers)
-    console.log('[7/11] Starting TP/SL Engine...');
+    // 9. Start TP/SL Engine (synchronous triggers)
+    console.log('[9/14] Starting TP/SL Engine...');
     const tpslEngine = startTPSLEngine(priceEngine);
     console.log('       ✓ TP/SL Engine started');
 
-    // 8. Start Liquidation Engine
-    console.log('[8/11] Starting Liquidation Engine...');
+    // 10. Start Liquidation Engine
+    console.log('[10/14] Starting Liquidation Engine...');
     const liquidationEngine = startLiquidationEngine(priceEngine);
-    console.log('       ✓ Liquidation Engine started');
+    console.log('        ✓ Liquidation Engine started');
 
-    // 9. Start Risk Engine (continuous monitoring)
-    console.log('[9/11] Starting Risk Engine...');
+    // 11. Start Risk Engine (continuous monitoring)
+    console.log('[11/14] Starting Risk Engine...');
     const riskEngine = startRiskEngine(priceEngine, wsServer);
-    console.log('       ✓ Risk Engine started');
+    console.log('        ✓ Risk Engine started');
 
-    // 10. Start Background Workers (DB persistence retries, cleanup)
-    console.log('[10/11] Starting Background Workers...');
+    // 12. Start Background Workers (DB persistence retries, cleanup)
+    console.log('[12/14] Starting Background Workers...');
     const backgroundWorker = startBackgroundWorker();
     console.log('        ✓ Background Worker started');
 
-    // 11. Start Scheduled Workers
-    console.log('[11/11] Starting Scheduled Workers...');
+    // 13. Start Scheduled Workers
+    console.log('[13/14] Starting Scheduled Workers...');
     const dailyResetWorker = startDailyResetWorker();
     const evaluationChecker = startEvaluationChecker(wsServer);
     console.log('        ✓ Daily Reset Worker started');
     console.log('        ✓ Evaluation Checker started');
+
+    // 14. Start Funding Worker (8-hour funding rate application)
+    console.log('[14/14] Starting Funding Worker...');
+    const fundingWorker = startFundingWorker();
+    console.log('        ✓ Funding Worker started');
 
     console.log(`
 ╔═══════════════════════════════════════════════════════════╗
@@ -135,10 +153,13 @@ async function main() {
       riskEngine.stop();
       backgroundWorker.stop();
       dailyResetWorker.stop();
+      fundingWorker.stop();
       evaluationChecker.stop();
+      marketDataService.stop();
 
       // Disconnect from Binance
       binanceFeed.disconnect();
+      orderBookFeed.disconnect();
 
       // Flush account state to database
       console.log('Flushing account state to database...');

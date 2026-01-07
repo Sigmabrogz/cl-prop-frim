@@ -265,6 +265,8 @@ async function executeWithLock(
     entryValue: marginCalc.notionalValue,
     marginUsed: marginCalc.marginRequired,
     entryFee: marginCalc.entryFee,
+    accumulatedFunding: 0,
+    lastFundingAt: null,
     takeProfit: order.takeProfit || null,
     stopLoss: order.stopLoss || null,
     liquidationPrice,

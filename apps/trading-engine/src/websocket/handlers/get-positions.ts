@@ -40,6 +40,7 @@ export async function handleGetPositions(
       entryValue: pos.entryValue,
       marginUsed: pos.marginUsed,
       entryFee: pos.entryFee,
+      accumulatedFunding: pos.accumulatedFunding,
       takeProfit: pos.takeProfit,
       stopLoss: pos.stopLoss,
       liquidationPrice: pos.liquidationPrice,

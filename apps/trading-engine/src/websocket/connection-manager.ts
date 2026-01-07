@@ -14,6 +14,10 @@ export interface ClientConnection {
   connectedAt: Date;
 }
 
+// Throttle config: max 10 price updates per second per symbol
+const PRICE_UPDATE_THROTTLE_MS = 100; // 100ms = 10 updates/sec max
+const MAX_BUFFERED_AMOUNT = 65536; // 64KB - skip if buffer exceeds this
+
 export class ConnectionManager {
   // Connection ID -> Connection
   private connections: Map<string, ClientConnection> = new Map();
@@ -26,6 +30,12 @@ export class ConnectionManager {
 
   // Symbol -> Connection IDs (for price subscriptions)
   private symbolSubscriptions: Map<string, Set<string>> = new Map();
+
+  // Throttling: Symbol -> last broadcast timestamp
+  private lastBroadcastTime: Map<string, number> = new Map();
+
+  // Pending broadcasts for throttled symbols
+  private pendingBroadcasts: Map<string, OutboundMessage> = new Map();
 
   /**
    * Add a new connection
@@ -216,22 +226,56 @@ export class ConnectionManager {
   }
 
   /**
-   * Broadcast to all subscribers of a symbol
+   * Broadcast to all subscribers of a symbol (with throttling for price updates)
    */
   broadcastToSubscribers(symbol: string, message: OutboundMessage): void {
     const connectionIds = this.symbolSubscriptions.get(symbol);
     if (!connectionIds || connectionIds.size === 0) return;
+
+    const now = Date.now();
+    const lastTime = this.lastBroadcastTime.get(symbol) || 0;
+
+    // Throttle price updates - only send max 10/sec per symbol
+    if (message.type === 'PRICE_UPDATE') {
+      if (now - lastTime < PRICE_UPDATE_THROTTLE_MS) {
+        // Store for later - latest price will be sent on next tick
+        this.pendingBroadcasts.set(symbol, message);
+        return;
+      }
+      this.lastBroadcastTime.set(symbol, now);
+      this.pendingBroadcasts.delete(symbol);
+    }
 
     const messageStr = JSON.stringify(message);
     for (const connectionId of connectionIds) {
       const connection = this.connections.get(connectionId);
       if (connection) {
         try {
+          // Check backpressure for non-critical messages
+          if (message.type === 'PRICE_UPDATE' || message.type === 'ORDER_BOOK_UPDATE') {
+            const buffered = (connection.ws as any).bufferedAmount ?? 0;
+            if (buffered > MAX_BUFFERED_AMOUNT) {
+              continue; // Skip this update, buffer too full
+            }
+          }
           connection.ws.send(messageStr);
         } catch (error) {
           // Silent fail for price broadcasts - high volume
           this.removeConnection(connectionId);
         }
+      }
+    }
+  }
+
+  /**
+   * Flush any pending throttled broadcasts (call this periodically)
+   */
+  flushPendingBroadcasts(): void {
+    const now = Date.now();
+    for (const [symbol, message] of this.pendingBroadcasts) {
+      const lastTime = this.lastBroadcastTime.get(symbol) || 0;
+      if (now - lastTime >= PRICE_UPDATE_THROTTLE_MS) {
+        this.broadcastToSubscribers(symbol, message);
       }
     }
   }

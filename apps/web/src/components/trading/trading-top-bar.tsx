@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { cn, formatCurrency } from "@/lib/utils";
 import { useTradingStore } from "@/hooks/use-websocket";
 import {
@@ -12,7 +13,12 @@ import {
   Shield,
   Keyboard,
   Settings,
+  User,
+  Bell,
+  HelpCircle,
+  LogOut,
 } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
 import { Badge } from "@/components/ui/badge";
 
 export interface TradingAccount {
@@ -41,7 +47,10 @@ export function TradingTopBar({
   onOpenShortcuts,
 }: TradingTopBarProps) {
   const [showAccountSelector, setShowAccountSelector] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const { isConnected, isAuthenticated } = useTradingStore();
+  const { logout } = useAuth();
+  const router = useRouter();
 
   const balance = selectedAccount ? parseFloat(selectedAccount.currentBalance) : 0;
   const startingBalance = selectedAccount ? parseFloat(selectedAccount.startingBalance) : 0;
@@ -248,16 +257,81 @@ export function TradingTopBar({
             >
               <Keyboard className="h-4 w-4" />
             </button>
-            <button
-              className={cn(
-                "p-2 rounded-lg transition-colors",
-                "text-muted-foreground hover:text-foreground",
-                "hover:bg-background-tertiary"
+
+            {/* Settings Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setShowSettingsMenu(!showSettingsMenu)}
+                className={cn(
+                  "p-2 rounded-lg transition-colors",
+                  "text-muted-foreground hover:text-foreground",
+                  "hover:bg-background-tertiary",
+                  showSettingsMenu && "bg-background-tertiary text-foreground"
+                )}
+                title="Settings"
+              >
+                <Settings className="h-4 w-4" />
+              </button>
+
+              {showSettingsMenu && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowSettingsMenu(false)}
+                  />
+                  <div className={cn(
+                    "absolute top-full right-0 mt-2 w-56 z-50",
+                    "bg-card border border-border rounded-xl shadow-2xl overflow-hidden",
+                    "animate-in fade-in slide-in-from-top-2 duration-200"
+                  )}>
+                    <div className="p-2">
+                      <button
+                        onClick={() => {
+                          router.push("/dashboard/settings");
+                          setShowSettingsMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-background-tertiary transition-colors"
+                      >
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">Profile Settings</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          router.push("/dashboard/settings#notifications");
+                          setShowSettingsMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-background-tertiary transition-colors"
+                      >
+                        <Bell className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">Notifications</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          window.open("https://help.propfirm.com", "_blank");
+                          setShowSettingsMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-background-tertiary transition-colors"
+                      >
+                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">Help Center</span>
+                      </button>
+                    </div>
+                    <div className="border-t border-border p-2">
+                      <button
+                        onClick={() => {
+                          logout();
+                          setShowSettingsMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-loss/10 transition-colors text-loss"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        <span className="text-sm font-medium">Sign Out</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
               )}
-              title="Settings"
-            >
-              <Settings className="h-4 w-4" />
-            </button>
+            </div>
           </div>
         </div>
       )}

@@ -2,6 +2,7 @@
 // DAILY RESET WORKER
 // ===========================================
 
+import { createHash } from 'crypto';
 import { db } from '@propfirm/database';
 import { tradingAccounts, dailySnapshots, tradeEvents } from '@propfirm/database/schema';
 import { eq, and, lt, inArray } from 'drizzle-orm';
@@ -95,13 +96,11 @@ export class DailyResetWorker {
       ));
 
       // Create daily snapshot before reset
+      // Note: snapshotDate is a 'date' column, needs YYYY-MM-DD string format
+      const snapshotDateStr = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
       await db.insert(dailySnapshots).values({
         accountId: account.id,
-        snapshotDate: new Date(Date.UTC(
-          now.getUTCFullYear(),
-          now.getUTCMonth(),
-          now.getUTCDate()
-        )),
+        snapshotDate: snapshotDateStr,
         startingBalance: dailyStartingBalance.toString(),
         endingBalance: currentBalance.toString(),
         peakBalance: peakBalance.toString(),
@@ -135,17 +134,27 @@ export class DailyResetWorker {
         })
         .where(eq(tradingAccounts.id, account.id));
 
-      // Log event
+      // Log event with hash for integrity
+      const eventDetails = {
+        previousDailyStartingBalance: dailyStartingBalance,
+        previousDailyPnl: dailyPnl,
+        newDailyStartingBalance: currentBalance,
+        tradingDays: newTradingDays,
+        nextResetAt: nextReset.toISOString(),
+      };
+      const eventData = JSON.stringify({
+        accountId: account.id,
+        eventType: 'DAILY_RESET',
+        details: eventDetails,
+        timestamp: now.toISOString(),
+      });
+      const eventHash = createHash('sha256').update(eventData).digest('hex');
+
       await db.insert(tradeEvents).values({
         accountId: account.id,
         eventType: 'DAILY_RESET',
-        details: {
-          previousDailyStartingBalance: dailyStartingBalance,
-          previousDailyPnl: dailyPnl,
-          newDailyStartingBalance: currentBalance,
-          tradingDays: newTradingDays,
-          nextResetAt: nextReset.toISOString(),
-        },
+        details: eventDetails,
+        eventHash,
       });
 
       console.log(

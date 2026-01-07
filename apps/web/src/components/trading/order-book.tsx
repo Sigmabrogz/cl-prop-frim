@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useCallback } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { useTradingStore } from "@/hooks/use-websocket";
 import { cn, formatCurrency, formatNumber } from "@/lib/utils";
 import { TrendingUp, TrendingDown, Activity, Layers, ChevronDown } from "lucide-react";
@@ -16,53 +16,18 @@ interface OrderBookProps {
 // Aggregation options
 const AGGREGATION_OPTIONS = [0.01, 0.1, 1, 10, 50, 100];
 
-// Seeded random number generator for stable values
-function seededRandom(seed: number): number {
-  const x = Math.sin(seed * 9999) * 10000;
-  return x - Math.floor(x);
-}
-
-// Generate stable order book levels based on price
-function generateOrderBookLevels(midPrice: number, spread: number, levels: number = 10, aggregation: number = 1) {
-  const bids: { price: number; size: number; total: number }[] = [];
-  const asks: { price: number; size: number; total: number }[] = [];
-
-  const bidStart = Math.floor((midPrice - spread / 2) / aggregation) * aggregation;
-  const askStart = Math.ceil((midPrice + spread / 2) / aggregation) * aggregation;
-
-  let bidTotal = 0;
-  let askTotal = 0;
-
-  for (let i = 0; i < levels; i++) {
-    // Bids decrease in price
-    const bidPrice = bidStart - i * aggregation;
-    // Use seeded random based on price level for stable sizes
-    const bidSize = seededRandom(Math.floor(bidPrice * 100)) * 2 + 0.1;
-    bidTotal += bidSize;
-    bids.push({ price: bidPrice, size: bidSize, total: bidTotal });
-
-    // Asks increase in price
-    const askPrice = askStart + i * aggregation;
-    const askSize = seededRandom(Math.floor(askPrice * 100) + 1000) * 2 + 0.1;
-    askTotal += askSize;
-    asks.push({ price: askPrice, size: askSize, total: askTotal });
-  }
-
-  return { bids, asks };
-}
-
 export function OrderBook({ symbol, levels = 12, compact = false, onPriceClick, onSizeClick }: OrderBookProps) {
   const price = useTradingStore((state) => state.prices[symbol]);
+  const orderBook = useTradingStore((state) => state.orderBooks[symbol]);
   const [aggregation, setAggregation] = useState(1);
   const [showAggDropdown, setShowAggDropdown] = useState(false);
-  const stableDataRef = useRef<{
-    midPrice: number;
-    spread: number;
-    bids: { price: number; size: number; total: number }[];
-    asks: { price: number; size: number; total: number }[];
-  } | null>(null);
 
-  // Memoize order book data - only regenerate when price changes by $10+
+  // Debug: Log what we're receiving
+  console.log(`[OrderBook] symbol=${symbol}, price=${price?.bid}/${price?.ask}, orderBook bids=${orderBook?.bids?.length || 0}`);
+
+  // Order book subscription is handled by parent component (trading page)
+
+  // Process order book data with aggregation
   const orderBookData = useMemo(() => {
     if (!price || !price.bid || !price.ask) return null;
 
@@ -71,23 +36,46 @@ export function OrderBook({ symbol, levels = 12, compact = false, onPriceClick, 
 
     if (isNaN(midPrice) || midPrice <= 0) return null;
 
-    return {
-      midPrice,
-      spread,
-      ...generateOrderBookLevels(midPrice, spread, levels, aggregation),
-    };
-  }, [
-    price?.bid ? Math.floor(price.bid / 10) : 0,
-    price?.ask ? Math.floor(price.ask / 10) : 0,
-    levels,
-    aggregation,
-  ]);
+    // If we have real order book data, use it
+    if (orderBook && orderBook.bids.length > 0 && orderBook.asks.length > 0) {
+      // Process real order book data with aggregation
+      const aggregateLevels = (
+        rawLevels: { price: number; quantity: number }[],
+        agg: number,
+        isBid: boolean
+      ) => {
+        const aggregated: Map<number, number> = new Map();
 
-  // Keep a stable reference to the last valid data
-  if (orderBookData) {
-    stableDataRef.current = orderBookData;
-  }
-  const data = stableDataRef.current;
+        for (const level of rawLevels) {
+          const aggPrice = isBid
+            ? Math.floor(level.price / agg) * agg
+            : Math.ceil(level.price / agg) * agg;
+
+          aggregated.set(aggPrice, (aggregated.get(aggPrice) || 0) + level.quantity);
+        }
+
+        // Sort and calculate totals
+        const sorted = Array.from(aggregated.entries())
+          .sort((a, b) => isBid ? b[0] - a[0] : a[0] - b[0])
+          .slice(0, levels);
+
+        let total = 0;
+        return sorted.map(([price, size]) => {
+          total += size;
+          return { price, size, total };
+        });
+      };
+
+      const bids = aggregateLevels(orderBook.bids, aggregation, true);
+      const asks = aggregateLevels(orderBook.asks, aggregation, false);
+
+      return { midPrice, spread, bids, asks };
+    }
+
+    return null;
+  }, [price, orderBook, levels, aggregation]);
+
+  const data = orderBookData;
 
   const handlePriceClick = useCallback((price: number) => {
     onPriceClick?.(price);
@@ -101,7 +89,8 @@ export function OrderBook({ symbol, levels = 12, compact = false, onPriceClick, 
     return (
       <div className="h-full flex flex-col items-center justify-center text-muted-foreground p-4">
         <Layers className="h-6 w-6 mb-2 opacity-50 animate-pulse" />
-        <p className="text-xs">Waiting for data...</p>
+        <p className="text-xs">Loading order book...</p>
+        <p className="text-[10px] mt-1 text-muted-foreground/60">Real-time Binance data</p>
       </div>
     );
   }

@@ -543,7 +543,8 @@ const PositionRow = memo(function PositionRow({ position, onClose, onModify, cur
       ? currPrice - position.entryPrice
       : position.entryPrice - currPrice;
 
-    const pnl = priceDiff * position.quantity * position.leverage;
+    // PnL is NOT multiplied by leverage - leverage only affects margin, not actual P&L
+    const pnl = priceDiff * position.quantity;
 
     // ROE (Return on Equity) - PnL relative to margin used
     const returnOnEquity = position.marginUsed > 0
@@ -646,6 +647,11 @@ const PositionRow = memo(function PositionRow({ position, onClose, onModify, cur
         <p className={cn("font-mono text-xs", getPnLColor(roe))}>
           {roe >= 0 ? "+" : ""}{roe.toFixed(2)}%
         </p>
+        {position.accumulatedFunding != null && position.accumulatedFunding !== 0 && (
+          <p className={cn("font-mono text-[10px]", position.accumulatedFunding >= 0 ? "text-loss" : "text-profit")}>
+            Funding: {position.accumulatedFunding >= 0 ? "-" : "+"}{formatCurrency(Math.abs(position.accumulatedFunding))}
+          </p>
+        )}
       </td>
 
       {/* Duration */}
@@ -736,7 +742,8 @@ export function PositionsPanel({ accountId }: PositionsPanelProps) {
       ? currentPrice - pos.entryPrice
       : pos.entryPrice - currentPrice;
 
-    return sum + priceDiff * pos.quantity * pos.leverage;
+    // PnL is NOT multiplied by leverage
+    return sum + priceDiff * pos.quantity;
   }, 0);
 
   const totalMargin = positions.reduce((sum, pos) => {
@@ -745,6 +752,10 @@ export function PositionsPanel({ accountId }: PositionsPanelProps) {
 
   const totalValue = positions.reduce((sum, pos) => {
     return sum + (pos.entryValue || pos.quantity * pos.entryPrice);
+  }, 0);
+
+  const totalFunding = positions.reduce((sum, pos) => {
+    return sum + (pos.accumulatedFunding || 0);
   }, 0);
 
   if (positions.length === 0) {
@@ -774,7 +785,7 @@ export function PositionsPanel({ accountId }: PositionsPanelProps) {
               <th className="py-2 px-3 font-medium">Mark</th>
               <th className="py-2 px-3 font-medium">Liq.</th>
               <th className="py-2 px-3 font-medium">TP/SL</th>
-              <th className="py-2 px-3 font-medium">PnL (ROE)</th>
+              <th className="py-2 px-3 font-medium">uPnL (ROE)</th>
               <th className="py-2 px-3 font-medium">Time</th>
               <th className="py-2 px-3 font-medium">Actions</th>
             </tr>
@@ -802,8 +813,13 @@ export function PositionsPanel({ accountId }: PositionsPanelProps) {
           <span className="text-muted-foreground">
             Margin: <span className="font-mono text-foreground">{formatCurrency(totalMargin)}</span>
           </span>
+          {totalFunding !== 0 && (
+            <span className="text-muted-foreground">
+              Funding: <span className={cn("font-mono", totalFunding >= 0 ? "text-loss" : "text-profit")}>{totalFunding >= 0 ? "-" : "+"}{formatCurrency(Math.abs(totalFunding))}</span>
+            </span>
+          )}
           <span className="text-muted-foreground">
-            Total PnL: <span className={cn("font-mono font-semibold", getPnLColor(totalPnl))}>{formatCurrency(totalPnl, { showSign: true })}</span>
+            Total uPnL: <span className={cn("font-mono font-semibold", getPnLColor(totalPnl))}>{formatCurrency(totalPnl, { showSign: true })}</span>
           </span>
         </div>
         {positions.length > 1 && (

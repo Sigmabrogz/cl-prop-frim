@@ -23,6 +23,8 @@ export interface Position {
   entryValue: number;
   marginUsed: number;
   entryFee: number;
+  accumulatedFunding: number; // Total funding fees paid (positive = cost, negative = received)
+  lastFundingAt: Date | null;
   takeProfit: number | null;
   stopLoss: number | null;
   liquidationPrice: number;
@@ -65,6 +67,8 @@ export class PositionManager {
         entryValue: parseFloat(pos.entryValue),
         marginUsed: parseFloat(pos.marginUsed),
         entryFee: parseFloat(pos.entryFee),
+        accumulatedFunding: parseFloat(pos.accumulatedFunding || '0'),
+        lastFundingAt: pos.lastFundingAt || null,
         takeProfit: pos.takeProfit ? parseFloat(pos.takeProfit) : null,
         stopLoss: pos.stopLoss ? parseFloat(pos.stopLoss) : null,
         liquidationPrice: parseFloat(pos.liquidationPrice),
