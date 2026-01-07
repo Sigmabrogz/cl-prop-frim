@@ -71,6 +71,7 @@ function isPendingOrder(value: unknown): value is PendingOrder {
   const o = value as Record<string, unknown>;
   return (
     isString(o.id) &&
+    isString(o.accountId) &&
     isString(o.symbol) &&
     (o.side === "LONG" || o.side === "SHORT") &&
     isNumber(o.quantity) &&
@@ -132,6 +133,7 @@ export interface OrderResponse {
 
 export interface PendingOrder {
   id: string;
+  accountId: string;
   clientOrderId?: string;
   symbol: string;
   side: "LONG" | "SHORT";
@@ -206,6 +208,36 @@ interface TradingStore {
   // Selected account
   selectedAccountId: string | null;
   setSelectedAccountId: (id: string | null) => void;
+
+  // Account balance (real-time updates)
+  accountBalance: {
+    currentBalance: number;
+    startingBalance: number;
+    availableMargin: number;
+    dailyPnl: number;
+    totalMarginUsed: number;
+    // Risk metrics
+    dailyLossLimit: number;
+    maxDrawdownLimit: number;
+    peakBalance: number;
+  } | null;
+  setAccountBalance: (balance: {
+    currentBalance: number;
+    startingBalance: number;
+    availableMargin: number;
+    dailyPnl: number;
+    totalMarginUsed: number;
+    dailyLossLimit: number;
+    maxDrawdownLimit: number;
+    peakBalance: number;
+  } | null) => void;
+  updateAccountBalance: (updates: Partial<{
+    currentBalance: number;
+    availableMargin: number;
+    dailyPnl: number;
+    totalMarginUsed: number;
+    peakBalance: number;
+  }>) => void;
 
   // Order state
   lastOrderResponse: OrderResponse | null;
@@ -304,6 +336,15 @@ export const useTradingStore = create<TradingStore>()(
     selectedAccountId: null,
     setSelectedAccountId: (id) => set({ selectedAccountId: id }),
 
+    // Account balance
+    accountBalance: null,
+    setAccountBalance: (balance) => set({ accountBalance: balance }),
+    updateAccountBalance: (updates) => set((state) => {
+      if (state.accountBalance) {
+        Object.assign(state.accountBalance, updates);
+      }
+    }),
+
     lastOrderResponse: null,
     setLastOrderResponse: (response) => set({ lastOrderResponse: response }),
 
@@ -369,6 +410,7 @@ export function useWebSocket() {
     removePendingOrder,
     setLastOrderResponse,
     updateOrderBook,
+    updateAccountBalance,
     selectedAccountId,
     resetOnDisconnect,
     reconnectAttempts,
@@ -631,6 +673,15 @@ export function useWebSocket() {
           if (isString(message.positionId)) {
             removePosition(message.positionId);
           }
+          // Update account balance from position close
+          if (message.account && typeof message.account === 'object') {
+            const acc = message.account as Record<string, unknown>;
+            updateAccountBalance({
+              currentBalance: isNumber(acc.currentBalance) ? acc.currentBalance : undefined,
+              availableMargin: isNumber(acc.availableMargin) ? acc.availableMargin : undefined,
+              dailyPnl: isNumber(acc.dailyPnl) ? acc.dailyPnl : undefined,
+            });
+          }
           break;
 
         case "POSITION_PARTIALLY_CLOSED":
@@ -660,6 +711,15 @@ export function useWebSocket() {
           if (message.filledFromQueue && isString(message.orderId)) {
             removePendingOrder(message.orderId);
           }
+          // Update account balance from order fill
+          if (message.account && typeof message.account === 'object') {
+            const acc = message.account as Record<string, unknown>;
+            updateAccountBalance({
+              currentBalance: isNumber(acc.currentBalance) ? acc.currentBalance : undefined,
+              availableMargin: isNumber(acc.availableMargin) ? acc.availableMargin : undefined,
+              totalMarginUsed: isNumber(acc.totalMarginUsed) ? acc.totalMarginUsed : undefined,
+            });
+          }
           setLastOrderResponse({
             success: true,
             orderId: isString(message.orderId) ? message.orderId : undefined,
@@ -679,14 +739,16 @@ export function useWebSocket() {
           {
             // Validate required fields before adding
             const orderId = isString(message.orderId) ? message.orderId : "";
+            const accountId = isString(message.accountId) ? message.accountId : "";
             const symbol = isString(message.symbol) ? message.symbol : "";
             const side = message.side === "LONG" || message.side === "SHORT" ? message.side : "LONG";
             const quantity = isNumber(message.quantity) ? message.quantity : 0;
             const limitPrice = isNumber(message.limitPrice) ? message.limitPrice : 0;
 
-            if (orderId && symbol && quantity > 0 && limitPrice > 0) {
+            if (orderId && accountId && symbol && quantity > 0 && limitPrice > 0) {
               addPendingOrder({
                 id: orderId,
+                accountId,
                 clientOrderId: isString(message.clientOrderId) ? message.clientOrderId : undefined,
                 symbol,
                 side,
@@ -779,6 +841,7 @@ export function useWebSocket() {
       removePendingOrder,
       setLastOrderResponse,
       updateOrderBook,
+      updateAccountBalance,
     ]
   );
 

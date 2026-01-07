@@ -8,7 +8,7 @@ import {
 } from "react-resizable-panels";
 import { cn } from "@/lib/utils";
 import { GripVertical, GripHorizontal, ChevronLeft, ChevronRight, BarChart3, ClipboardList, Briefcase, Eye } from "lucide-react";
-import { useSidebar } from "@/app/(dashboard)/layout";
+import { useSidebar } from "@/contexts/sidebar-context";
 
 interface TradingLayoutProps {
   watchlist: ReactNode;

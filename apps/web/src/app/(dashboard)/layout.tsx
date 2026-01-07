@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useEffect, createContext, useContext } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
+import { SidebarContext, useSidebar } from "@/contexts/sidebar-context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SearchInput } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useTradingStore } from "@/hooks/use-websocket";
 import {
   TrendingUp,
   LayoutDashboard,
@@ -33,22 +35,6 @@ import {
   ExternalLink,
 } from "lucide-react";
 
-// Sidebar context for global state
-interface SidebarContextType {
-  isCollapsed: boolean;
-  setIsCollapsed: (collapsed: boolean) => void;
-  isMobileOpen: boolean;
-  setIsMobileOpen: (open: boolean) => void;
-}
-
-const SidebarContext = createContext<SidebarContextType | null>(null);
-
-export function useSidebar() {
-  const context = useContext(SidebarContext);
-  if (!context) throw new Error("useSidebar must be used within SidebarProvider");
-  return context;
-}
-
 // Navigation items
 const navigation = [
   { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
@@ -66,13 +52,17 @@ const secondaryNavigation = [
 
 // Account balance component
 function AccountBalance({ isCollapsed }: { isCollapsed: boolean }) {
-  const [accountData, setAccountData] = useState<{
+  // Get real-time balance from trading store
+  const { accountBalance, setAccountBalance } = useTradingStore();
+  
+  // Local state for initial fetch (before websocket connects)
+  const [initialData, setInitialData] = useState<{
     balance: number;
     startingBalance: number;
   } | null>(null);
 
+  // Fetch initial account data on mount
   useEffect(() => {
-    // Fetch user's accounts to get real balance
     const fetchAccounts = async () => {
       try {
         const response = await fetch('/api/accounts', {
@@ -81,13 +71,27 @@ function AccountBalance({ isCollapsed }: { isCollapsed: boolean }) {
         if (response.ok) {
           const data = await response.json();
           if (data.accounts && data.accounts.length > 0) {
-            // Sum up all account balances or use the first active one
+            // Find first active account
             const activeAccount = data.accounts.find((a: { status: string }) => 
-              a.status === 'funded' || a.status === 'evaluation'
+              a.status === 'funded' || a.status === 'evaluation' || a.status === 'active'
             ) || data.accounts[0];
-            setAccountData({
+            
+            const accountData = {
               balance: parseFloat(activeAccount.currentBalance) || 0,
               startingBalance: parseFloat(activeAccount.startingBalance) || 0,
+            };
+            setInitialData(accountData);
+            
+            // Also initialize the store with full account balance data
+            setAccountBalance({
+              currentBalance: parseFloat(activeAccount.currentBalance) || 0,
+              startingBalance: parseFloat(activeAccount.startingBalance) || 0,
+              availableMargin: parseFloat(activeAccount.availableMargin) || 0,
+              dailyPnl: parseFloat(activeAccount.dailyPnl) || 0,
+              totalMarginUsed: parseFloat(activeAccount.totalMarginUsed) || 0,
+              dailyLossLimit: parseFloat(activeAccount.dailyLossLimit) || 0,
+              maxDrawdownLimit: parseFloat(activeAccount.maxDrawdownLimit) || 0,
+              peakBalance: parseFloat(activeAccount.peakBalance) || 0,
             });
           }
         }
@@ -96,10 +100,11 @@ function AccountBalance({ isCollapsed }: { isCollapsed: boolean }) {
       }
     };
     fetchAccounts();
-  }, []);
+  }, [setAccountBalance]);
 
-  const balance = accountData?.balance ?? 0;
-  const startingBalance = accountData?.startingBalance ?? 0;
+  // Use store balance if available, otherwise fall back to initial fetch
+  const balance = accountBalance?.currentBalance ?? initialData?.balance ?? 0;
+  const startingBalance = accountBalance?.startingBalance ?? initialData?.startingBalance ?? 0;
   const pnl = balance - startingBalance;
   const pnlPercent = startingBalance > 0 ? ((pnl / startingBalance) * 100).toFixed(2) : "0.00";
   const isPositive = pnl >= 0;

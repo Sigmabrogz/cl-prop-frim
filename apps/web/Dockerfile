@@ -1,4 +1,4 @@
-# Build stage
+# Build stage - copy entire monorepo
 FROM node:20-alpine AS builder
 
 WORKDIR /app
@@ -6,15 +6,13 @@ WORKDIR /app
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 
-# Copy workspace files
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY packages ./packages
-COPY apps/web ./apps/web
+# Copy entire monorepo
+COPY . .
 
-# Install dependencies
+# Install all dependencies
 RUN pnpm install --frozen-lockfile
 
-# Build arguments for environment variables
+# Build arguments for environment variables (set at build time)
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_WS_URL
 

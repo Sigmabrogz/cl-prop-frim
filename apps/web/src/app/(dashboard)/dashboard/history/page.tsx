@@ -380,7 +380,7 @@ function TradeHistoryContent() {
                       </div>
 
                       <div className="hidden md:block">
-                        <Badge variant={trade.side === "LONG" ? "success" : "destructive"}>
+                        <Badge variant={trade.side === "LONG" ? "success" : "danger"}>
                           {trade.side}
                         </Badge>
                       </div>
@@ -401,7 +401,7 @@ function TradeHistoryContent() {
                       <div className="text-right md:text-right">
                         <div className="md:hidden flex items-center justify-end gap-2 mb-1">
                           <span className="font-medium">{trade.symbol}</span>
-                          <Badge variant={trade.side === "LONG" ? "success" : "destructive"} className="text-xs">
+                          <Badge variant={trade.side === "LONG" ? "success" : "danger"} className="text-xs">
                             {trade.side}
                           </Badge>
                         </div>

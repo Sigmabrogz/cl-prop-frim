@@ -328,6 +328,8 @@ export interface TradingAccount {
   startingBalance: string;
   currentBalance: string;
   peakBalance: string;
+  availableMargin: string;
+  totalMarginUsed: string;
   dailyStartingBalance: string;
   dailyPnl: string;
   dailyLossLimit: string;

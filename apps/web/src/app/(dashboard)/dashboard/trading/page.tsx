@@ -55,7 +55,7 @@ function TradingContent() {
 
   const isMobile = useIsMobile();
 
-  const { isConnected, isAuthenticated, setSelectedAccountId } = useTradingStore();
+  const { isConnected, isAuthenticated, setSelectedAccountId, setAccountBalance } = useTradingStore();
   const { subscribe, unsubscribe, getPositions, subscribeOrderBook, unsubscribeOrderBook } = useWebSocket();
 
   // Keyboard shortcuts
@@ -85,6 +85,17 @@ function TradingContent() {
           if (targetAccount) {
             setSelectedAccount(targetAccount);
             setSelectedAccountId(targetAccount.id);
+            // Initialize account balance in store from loaded account data
+            setAccountBalance({
+              currentBalance: parseFloat(targetAccount.currentBalance) || 0,
+              startingBalance: parseFloat(targetAccount.startingBalance) || 0,
+              availableMargin: parseFloat(targetAccount.availableMargin) || 0,
+              dailyPnl: parseFloat(targetAccount.dailyPnl) || 0,
+              totalMarginUsed: parseFloat(targetAccount.totalMarginUsed) || 0,
+              dailyLossLimit: parseFloat(targetAccount.dailyLossLimit) || 0,
+              maxDrawdownLimit: parseFloat(targetAccount.maxDrawdownLimit) || 0,
+              peakBalance: parseFloat(targetAccount.peakBalance) || parseFloat(targetAccount.startingBalance) || 0,
+            });
           }
         }
       } catch (error) {
@@ -95,7 +106,7 @@ function TradingContent() {
     }
 
     loadAccounts();
-  }, [accountIdParam, setSelectedAccountId]);
+  }, [accountIdParam, setSelectedAccountId, setAccountBalance]);
 
   // Subscribe to price feeds
   useEffect(() => {
@@ -134,7 +145,18 @@ function TradingContent() {
   const handleSelectAccount = useCallback((account: TradingAccount) => {
     setSelectedAccount(account);
     setSelectedAccountId(account.id);
-  }, [setSelectedAccountId]);
+    // Initialize account balance in store from selected account data
+    setAccountBalance({
+      currentBalance: parseFloat(account.currentBalance) || 0,
+      startingBalance: parseFloat(account.startingBalance) || 0,
+      availableMargin: parseFloat(account.availableMargin) || 0,
+      dailyPnl: parseFloat(account.dailyPnl) || 0,
+      totalMarginUsed: parseFloat(account.totalMarginUsed) || 0,
+      dailyLossLimit: parseFloat(account.dailyLossLimit) || 0,
+      maxDrawdownLimit: parseFloat(account.maxDrawdownLimit) || 0,
+      peakBalance: parseFloat(account.peakBalance) || parseFloat(account.startingBalance) || 0,
+    });
+  }, [setSelectedAccountId, setAccountBalance]);
 
   // Filter symbols by search
   const filteredSymbols = SYMBOLS.filter((s) =>
@@ -309,7 +331,9 @@ function TradingContent() {
                       onClick={() => { setChartType("candle"); setShowChartSettings(false); }}
                       className={cn(
                         "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors",
-                        chartType === "candle" ? "bg-primary/10 text-primary" : "hover:bg-background-tertiary"
+                        chartType === "candle" 
+                          ? "bg-primary/10 text-primary" 
+                          : "text-foreground hover:bg-background-tertiary"
                       )}
                     >
                       <CandlestickChart className="h-4 w-4" />
@@ -319,7 +343,9 @@ function TradingContent() {
                       onClick={() => { setChartType("line"); setShowChartSettings(false); }}
                       className={cn(
                         "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors",
-                        chartType === "line" ? "bg-primary/10 text-primary" : "hover:bg-background-tertiary"
+                        chartType === "line" 
+                          ? "bg-primary/10 text-primary" 
+                          : "text-foreground hover:bg-background-tertiary"
                       )}
                     >
                       <LineChart className="h-4 w-4" />
@@ -329,7 +355,9 @@ function TradingContent() {
                       onClick={() => { setChartType("bar"); setShowChartSettings(false); }}
                       className={cn(
                         "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors",
-                        chartType === "bar" ? "bg-primary/10 text-primary" : "hover:bg-background-tertiary"
+                        chartType === "bar" 
+                          ? "bg-primary/10 text-primary" 
+                          : "text-foreground hover:bg-background-tertiary"
                       )}
                     >
                       <BarChart3 className="h-4 w-4" />

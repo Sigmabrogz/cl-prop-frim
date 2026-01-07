@@ -258,8 +258,8 @@ export function HistoryPanel({ accountId, type }: HistoryPanelProps) {
         const response = await tradesApi.list({ accountId, page, limit });
         if (response.success && response.data) {
           setTrades(response.data.trades);
-          setHasMore(response.data.pagination.hasMore);
-          setTotal(response.data.pagination.total);
+          setTotal(response.data.total);
+          setHasMore(response.data.trades.length === limit);
         } else {
           setError(response.error || "Failed to load trade history");
         }

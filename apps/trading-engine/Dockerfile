@@ -1,37 +1,34 @@
-# Build stage
-FROM oven/bun:1 AS builder
+# Build stage - use Node/pnpm for building
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy workspace files
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY packages ./packages
-COPY apps/trading-engine ./apps/trading-engine
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 
-# Install dependencies
-RUN bun install --frozen-lockfile
+# Copy entire monorepo
+COPY . .
 
-# Build the trading engine
-WORKDIR /app/apps/trading-engine
-RUN bun run build
+# Install all dependencies
+RUN pnpm install --frozen-lockfile
 
-# Production stage
-FROM oven/bun:1-slim AS runner
+# Build all workspace packages
+RUN pnpm --filter @propfirm/shared build
+RUN pnpm --filter @propfirm/redis build
+RUN pnpm --filter @propfirm/database build
+
+# Production stage - use Bun for runtime
+FROM oven/bun:1
 
 WORKDIR /app
 
-# Copy built files and dependencies
-COPY --from=builder /app/apps/trading-engine/dist ./dist
-COPY --from=builder /app/apps/trading-engine/package.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/packages ./packages
+# Copy everything from builder (with built packages)
+COPY --from=builder /app .
 
-# Set production environment
 ENV NODE_ENV=production
-ENV WS_PORT=3002
+ENV PORT=3002
 
-# Expose WebSocket port
 EXPOSE 3002
 
-# Run the trading engine
-CMD ["bun", "run", "dist/index.js"]
+# Run with Bun
+CMD ["bun", "run", "apps/trading-engine/src/index.ts"]

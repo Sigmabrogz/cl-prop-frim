@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn, formatCurrency } from "@/lib/utils";
 import { useTradingStore } from "@/hooks/use-websocket";
+import { type TradingAccount } from "@/lib/api";
 import {
   Wallet,
   ChevronDown,
@@ -21,17 +22,8 @@ import {
 import { useAuth } from "@/contexts/auth-context";
 import { Badge } from "@/components/ui/badge";
 
-export interface TradingAccount {
-  id: string;
-  accountNumber: string;
-  status: string;
-  currentBalance: string;
-  startingBalance: string;
-  dailyPnl: string;
-  dailyLossLimit: string;
-  maxDrawdown: string;
-  maxLeverage: number;
-}
+// Re-export the TradingAccount type for components that import from here
+export type { TradingAccount } from "@/lib/api";
 
 interface TradingTopBarProps {
   accounts: TradingAccount[];
@@ -48,18 +40,19 @@ export function TradingTopBar({
 }: TradingTopBarProps) {
   const [showAccountSelector, setShowAccountSelector] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
-  const { isConnected, isAuthenticated } = useTradingStore();
+  const { isConnected, isAuthenticated, accountBalance } = useTradingStore();
   const { logout } = useAuth();
   const router = useRouter();
 
-  const balance = selectedAccount ? parseFloat(selectedAccount.currentBalance) : 0;
-  const startingBalance = selectedAccount ? parseFloat(selectedAccount.startingBalance) : 0;
+  // Use real-time account balance from websocket store if available, fallback to selectedAccount
+  const balance = accountBalance?.currentBalance ?? (selectedAccount ? parseFloat(selectedAccount.currentBalance) : 0);
+  const startingBalance = accountBalance?.startingBalance ?? (selectedAccount ? parseFloat(selectedAccount.startingBalance) : 0);
   const pnl = balance - startingBalance;
   const pnlPercent = startingBalance > 0 ? (pnl / startingBalance) * 100 : 0;
-  const dailyPnl = selectedAccount ? parseFloat(selectedAccount.dailyPnl) || 0 : 0;
-  const dailyLossLimit = selectedAccount ? parseFloat(selectedAccount.dailyLossLimit) || 500 : 500;
+  const dailyPnl = accountBalance?.dailyPnl ?? (selectedAccount ? parseFloat(selectedAccount.dailyPnl) || 0 : 0);
+  const dailyLossLimit = accountBalance?.dailyLossLimit ?? (selectedAccount ? parseFloat(selectedAccount.dailyLossLimit) || 500 : 500);
   const dailyLossUsedPercent = dailyLossLimit > 0 ? Math.abs(Math.min(dailyPnl, 0)) / dailyLossLimit * 100 : 0;
-  const maxDrawdown = selectedAccount ? parseFloat(selectedAccount.maxDrawdown) || 2500 : 2500;
+  const maxDrawdown = accountBalance?.maxDrawdownLimit ?? (selectedAccount ? parseFloat(selectedAccount.maxDrawdownLimit) || 2500 : 2500);
   const drawdownUsedPercent = maxDrawdown > 0 ? Math.abs(Math.min(pnl, 0)) / maxDrawdown * 100 : 0;
 
   return (
