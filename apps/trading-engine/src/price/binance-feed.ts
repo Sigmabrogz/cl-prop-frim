@@ -231,7 +231,18 @@ let binanceFeed: BinanceFeed | null = null;
 export async function startBinanceFeed(priceEngine: PriceEngine): Promise<BinanceFeed> {
   if (!binanceFeed) {
     binanceFeed = new BinanceFeed(priceEngine);
-    await binanceFeed.connect();
+    try {
+      await binanceFeed.connect();
+    } catch (error) {
+      // Don't crash if Binance connection fails - it will retry automatically
+      console.warn('[BinanceFeed] Initial connection failed, will retry in background:', (error as Error).message);
+      // Schedule a reconnect attempt
+      setTimeout(() => {
+        binanceFeed?.connect().catch((e) => {
+          console.warn('[BinanceFeed] Retry connection failed:', (e as Error).message);
+        });
+      }, 5000);
+    }
   }
   return binanceFeed;
 }

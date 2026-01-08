@@ -277,7 +277,17 @@ let orderBookFeed: OrderBookFeed | null = null;
 export async function startOrderBookFeed(): Promise<OrderBookFeed> {
   if (!orderBookFeed) {
     orderBookFeed = new OrderBookFeed();
-    await orderBookFeed.connect();
+    try {
+      await orderBookFeed.connect();
+    } catch (error) {
+      // Don't crash if connection fails - it will retry automatically
+      console.warn('[OrderBookFeed] Initial connection failed, will retry in background:', (error as Error).message);
+      setTimeout(() => {
+        orderBookFeed?.connect().catch((e) => {
+          console.warn('[OrderBookFeed] Retry connection failed:', (e as Error).message);
+        });
+      }, 5000);
+    }
   }
   return orderBookFeed;
 }
