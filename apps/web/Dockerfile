@@ -13,11 +13,14 @@ COPY . .
 RUN pnpm install --frozen-lockfile
 
 # Build arguments for environment variables (set at build time)
+# These MUST be provided via Railway's "Build Args" or environment variables
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_WS_URL
 
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
+# Set environment variables for the build
+# Use defaults for build if not provided (will be overridden at runtime via Railway vars)
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://api.example.com}
+ENV NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL:-wss://ws.example.com}
 
 # Build the web app
 WORKDIR /app/apps/web
