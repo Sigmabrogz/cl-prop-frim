@@ -2,12 +2,11 @@
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "DOCKERFILE",
-    "dockerfilePath": "apps/api/Dockerfile",
-    "watchPatterns": ["apps/api/**", "packages/**"]
+    "dockerfilePath": "Dockerfile.api"
   },
   "deploy": {
-    "startCommand": "bun run apps/api/src/index.ts",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
 }
+

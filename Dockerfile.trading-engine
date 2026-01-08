@@ -1,0 +1,40 @@
+# Simple Dockerfile for Railway - builds from monorepo root
+# Railway should NOT set a root directory for this to work
+
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+
+# Copy package files first for better caching
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/trading-engine/package.json ./apps/trading-engine/
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/database/package.json ./packages/database/
+COPY packages/redis/package.json ./packages/redis/
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy source code
+COPY . .
+
+# Build packages
+RUN pnpm --filter @propfirm/shared build
+RUN pnpm --filter @propfirm/redis build  
+RUN pnpm --filter @propfirm/database build
+
+# Production stage
+FROM oven/bun:1
+WORKDIR /app
+
+COPY --from=builder /app .
+
+ENV NODE_ENV=production
+ENV PORT=3002
+
+EXPOSE 3002
+
+CMD ["bun", "run", "apps/trading-engine/src/index.ts"]
+
