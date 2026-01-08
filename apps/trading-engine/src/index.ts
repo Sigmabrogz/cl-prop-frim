@@ -36,7 +36,7 @@ for (const envVar of requiredEnvVars) {
 // CONFIGURATION
 // ===========================================
 
-const WS_PORT = parseInt(process.env.WS_PORT || '3002', 10);
+const WS_PORT = parseInt(process.env.PORT || process.env.WS_PORT || '3002', 10);
 
 // ===========================================
 // STARTUP SEQUENCE
