@@ -3,7 +3,7 @@
 // ===========================================
 
 export type AccountType = 'evaluation' | 'funded';
-export type AccountTier = 'CLASSIC' | 'ELITE' | 'PRO';
+export type AccountTier = 'CLASSIC' | 'TURBO' | 'ELITE' | 'PRO';
 export type EvaluationType = '1-STEP' | '2-STEP';
 
 export type AccountStatus =

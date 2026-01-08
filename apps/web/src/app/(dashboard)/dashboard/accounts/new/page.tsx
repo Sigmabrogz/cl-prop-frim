@@ -2,17 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { plansApi, accountsApi, type EvaluationPlan } from "@/lib/api";
+import { plansApi, type EvaluationPlan } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import {
   Check,
   Sparkles,
   ArrowLeft,
-  Loader2,
-  CreditCard,
+  ArrowRight,
   Zap,
   Flame,
   Layers,
@@ -26,7 +25,6 @@ export default function NewAccountPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<number | null>(null);
   const [planType, setPlanType] = useState<PlanType>("classic");
-  const [isPurchasing, setIsPurchasing] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -58,20 +56,9 @@ export default function NewAccountPage() {
     }
   }).sort((a, b) => a.accountSize - b.accountSize);
 
-  const handlePurchase = async () => {
+  const handleContinueToCheckout = () => {
     if (!selectedPlan) return;
-
-    setIsPurchasing(true);
-    try {
-      const response = await accountsApi.create(String(selectedPlan));
-      if (response.success && response.data?.account) {
-        router.push(`/dashboard/accounts/${response.data.account.id}`);
-      }
-    } catch (error) {
-      console.error("Failed to create account:", error);
-    } finally {
-      setIsPurchasing(false);
-    }
+    router.push(`/dashboard/checkout?plan=${selectedPlan}`);
   };
 
   // Reset selection when changing plan type
@@ -308,7 +295,7 @@ export default function NewAccountPage() {
         </div>
       )}
 
-      {/* Purchase button */}
+      {/* Continue to Checkout button */}
       {selectedPlan && (
         <div className="sticky bottom-4 p-4 bg-card/80 backdrop-blur-xl border border-border rounded-xl shadow-lg">
           <div className="flex items-center justify-between gap-4">
@@ -322,20 +309,11 @@ export default function NewAccountPage() {
             <Button
               variant="glow"
               size="lg"
-              onClick={handlePurchase}
-              disabled={isPurchasing}
+              onClick={handleContinueToCheckout}
+              className="group"
             >
-              {isPurchasing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  Purchase for ${filteredPlans.find((p) => p.id === selectedPlan)?.price}
-                </>
-              )}
+              Continue to Checkout
+              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Button>
           </div>
         </div>

@@ -176,8 +176,8 @@ export const accountsApi = {
 
   get: (id: string) => api.get<{ account: TradingAccount }>(`/api/accounts/${id}`),
 
-  create: (planId: string) =>
-    api.post<{ account: TradingAccount }>('/api/accounts', { planId }),
+  create: (planId: string | number) =>
+    api.post<{ account: TradingAccount }>('/api/accounts', { planId: Number(planId) }),
 
   getStats: (id: string) =>
     api.get<{ stats: AccountStats }>(`/api/accounts/${id}/stats`),

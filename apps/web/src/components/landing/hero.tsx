@@ -1,381 +1,294 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  ArrowRight,
-  TrendingUp,
-  TrendingDown,
-  Shield,
-  Zap,
-  Clock,
-  DollarSign,
-  Activity,
-  Users,
-  Trophy,
-  CheckCircle2,
-} from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Animated counter component
-function AnimatedNumber({
+// Odometer Number Component
+function OdometerNumber({
   value,
   prefix = "",
   suffix = "",
-  duration = 2000,
+  delay = 0,
 }: {
   value: number;
   prefix?: string;
   suffix?: string;
-  duration?: number;
+  delay?: number;
 }) {
   const [displayValue, setDisplayValue] = useState(0);
+  const [isVisible, setIsVisible] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const steps = 60;
-    const increment = value / steps;
-    let current = 0;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+        }
+      },
+      { threshold: 0.5 }
+    );
 
-    const timer = setInterval(() => {
-      current += increment;
-      if (current >= value) {
-        setDisplayValue(value);
-        clearInterval(timer);
-      } else {
-        setDisplayValue(Math.floor(current));
-      }
-    }, duration / steps);
+    if (ref.current) {
+      observer.observe(ref.current);
+    }
 
-    return () => clearInterval(timer);
-  }, [value, duration]);
-
-  return (
-    <span className="font-mono tabular-nums">
-      {prefix}
-      {displayValue.toLocaleString()}
-      {suffix}
-    </span>
-  );
-}
-
-// Live price ticker with multiple assets
-function LivePriceTicker() {
-  const [prices, setPrices] = useState([
-    { symbol: "BTC", name: "Bitcoin", price: 91350.42, change: 2.34, icon: "B" },
-    { symbol: "ETH", name: "Ethereum", price: 3245.18, change: 1.87, icon: "E" },
-    { symbol: "SOL", name: "Solana", price: 142.56, change: -0.42, icon: "S" },
-  ]);
-  const [activeIndex, setActiveIndex] = useState(0);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
-    const priceInterval = setInterval(() => {
-      setPrices((prev) =>
-        prev.map((p) => ({
-          ...p,
-          price: Math.max(0, p.price + (Math.random() - 0.5) * p.price * 0.001),
-          change: p.change + (Math.random() - 0.5) * 0.05,
-        }))
-      );
-    }, 2000);
+    if (!isVisible) return;
 
-    const rotateInterval = setInterval(() => {
-      setActiveIndex((prev) => (prev + 1) % prices.length);
-    }, 4000);
+    const timeout = setTimeout(() => {
+      const duration = 1500;
+      const steps = 60;
+      const increment = value / steps;
+      let current = 0;
 
-    return () => {
-      clearInterval(priceInterval);
-      clearInterval(rotateInterval);
-    };
-  }, [prices.length]);
+      const timer = setInterval(() => {
+        current += increment;
+        if (current >= value) {
+          setDisplayValue(value);
+          clearInterval(timer);
+        } else {
+          setDisplayValue(Math.floor(current));
+        }
+      }, duration / steps);
 
-  const activePrice = prices[activeIndex];
+      return () => clearInterval(timer);
+    }, delay);
+
+    return () => clearTimeout(timeout);
+  }, [isVisible, value, delay]);
+
+  const formattedValue = displayValue.toLocaleString();
 
   return (
-    <div className="inline-flex items-center gap-4 px-5 py-2.5 rounded-2xl bg-card/60 border border-border/50 backdrop-blur-sm">
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/20">
-          <span className="text-sm font-bold text-primary">
-            {activePrice.icon}
-          </span>
-        </div>
-        <div className="flex flex-col">
-          <span className="text-xs text-muted-foreground">
-            {activePrice.symbol}/USD
-          </span>
-          <span className="font-mono text-sm font-semibold">
-            $
-            {activePrice.price.toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
-          </span>
-        </div>
-      </div>
-      <div
-        className={cn(
-          "flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold",
-          activePrice.change >= 0
-            ? "bg-profit/10 text-profit"
-            : "bg-loss/10 text-loss"
-        )}
-      >
-        {activePrice.change >= 0 ? (
-          <TrendingUp className="h-3 w-3" />
-        ) : (
-          <TrendingDown className="h-3 w-3" />
-        )}
-        {activePrice.change >= 0 ? "+" : ""}
-        {activePrice.change.toFixed(2)}%
-      </div>
-      <div className="flex gap-1">
-        {prices.map((_, i) => (
-          <div
-            key={i}
-            className={cn(
-              "w-1.5 h-1.5 rounded-full transition-all",
-              i === activeIndex ? "bg-primary w-3" : "bg-border"
-            )}
-          />
-        ))}
-      </div>
+    <div ref={ref} className="display-mono">
+      <span className="text-muted-foreground">{prefix}</span>
+      {formattedValue.split("").map((char, i) => (
+        <span
+          key={i}
+          className={cn(
+            "odometer-digit",
+            isVisible && "opacity-100"
+          )}
+          style={{ animationDelay: `${delay + i * 50}ms` }}
+        >
+          {char}
+        </span>
+      ))}
+      <span className="text-muted-foreground">{suffix}</span>
     </div>
   );
 }
 
-// Floating stats cards
-function FloatingStats() {
+// Word Reveal Component
+function WordReveal({ text, delay = 0 }: { text: string; delay?: number }) {
+  const [isVisible, setIsVisible] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    if (ref.current) {
+      observer.observe(ref.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
+  const words = text.split(" ");
+
   return (
-    <>
-      {/* Top left floating card */}
-      <div className="absolute top-32 left-8 hidden xl:block animate-slide-up" style={{ animationDelay: "0.6s" }}>
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-card/80 border border-border/50 backdrop-blur-sm shadow-lg">
-          <div className="p-2 rounded-lg bg-profit/10">
-            <Trophy className="h-5 w-5 text-profit" />
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">This Month</p>
-            <p className="font-mono text-lg font-bold text-profit">+$2.8M</p>
-            <p className="text-xs text-muted-foreground">Paid to Traders</p>
-          </div>
-        </div>
-      </div>
+    <div ref={ref} className="flex flex-wrap justify-center gap-x-4 gap-y-2">
+      {words.map((word, i) => (
+        <span
+          key={i}
+          className={cn(
+            "word-reveal",
+            isVisible && "opacity-100"
+          )}
+          style={{ animationDelay: `${delay + i * 100}ms` }}
+        >
+          {word}
+        </span>
+      ))}
+    </div>
+  );
+}
 
-      {/* Top right floating card */}
-      <div className="absolute top-48 right-8 hidden xl:block animate-slide-up" style={{ animationDelay: "0.8s" }}>
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-card/80 border border-border/50 backdrop-blur-sm shadow-lg">
-          <div className="p-2 rounded-lg bg-info/10">
-            <Activity className="h-5 w-5 text-info" />
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Execution Speed</p>
-            <p className="font-mono text-lg font-bold">&lt;200ms</p>
-            <p className="text-xs text-muted-foreground">Ultra-Fast</p>
-          </div>
-        </div>
+// KPI Tile Component
+function KPITile({
+  value,
+  prefix,
+  suffix,
+  label,
+  sublabel,
+  delay,
+  isProfit,
+}: {
+  value: number;
+  prefix?: string;
+  suffix?: string;
+  label: string;
+  sublabel?: string;
+  delay: number;
+  isProfit?: boolean;
+}) {
+  return (
+    <div className="kpi-tile hover-lift">
+      <div className={cn(
+        "text-3xl md:text-4xl lg:text-5xl font-bold mb-2",
+        isProfit && "text-profit"
+      )}>
+        <OdometerNumber value={value} prefix={prefix} suffix={suffix} delay={delay} />
       </div>
-
-      {/* Bottom floating card */}
-      <div className="absolute bottom-32 left-16 hidden xl:block animate-slide-up" style={{ animationDelay: "1s" }}>
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-card/80 border border-border/50 backdrop-blur-sm shadow-lg">
-          <div className="p-2 rounded-lg bg-primary/10">
-            <Users className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Active Traders</p>
-            <p className="font-mono text-lg font-bold">12,543</p>
-            <p className="text-xs text-profit flex items-center gap-1">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-profit opacity-75" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-profit" />
-              </span>
-              Trading Now
-            </p>
-          </div>
-        </div>
+      <div className="text-sm uppercase tracking-wider text-muted-foreground">
+        {label}
       </div>
-    </>
+      {sublabel && (
+        <div className="text-xs text-muted-foreground/60 mt-1">
+          {sublabel}
+        </div>
+      )}
+    </div>
   );
 }
 
 export function Hero() {
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const heroRef = useRef<HTMLElement>(null);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!heroRef.current) return;
+    const rect = heroRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left - rect.width / 2) / 50;
+    const y = (e.clientY - rect.top - rect.height / 2) / 50;
+    setMousePosition({ x, y });
+  }, []);
+
+  useEffect(() => {
+    const hero = heroRef.current;
+    if (hero) {
+      hero.addEventListener("mousemove", handleMouseMove);
+      return () => hero.removeEventListener("mousemove", handleMouseMove);
+    }
+  }, [handleMouseMove]);
+
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
-      {/* Background Effects */}
-      <div className="absolute inset-0 bg-grid opacity-30" />
-
-      {/* Gradient orbs */}
-      <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-primary/15 rounded-full blur-[120px] animate-pulse-glow" />
+    <section
+      ref={heroRef}
+      className="relative min-h-screen flex flex-col justify-center overflow-hidden bg-grain"
+    >
+      {/* Grid Overlay with Parallax */}
       <div
-        className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-info/10 rounded-full blur-[100px] animate-pulse-glow"
-        style={{ animationDelay: "1s" }}
-      />
-      <div
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-profit/5 rounded-full blur-[150px]"
+        className="absolute inset-0 bg-grid-noir parallax-layer pointer-events-none"
+        style={{
+          transform: `translate(${mousePosition.x}px, ${mousePosition.y}px)`,
+        }}
       />
 
-      {/* Noise texture overlay */}
-      <div className="absolute inset-0 bg-noise opacity-50" />
-
-      {/* Floating stats */}
-      <FloatingStats />
-
-      <div className="container mx-auto px-4 relative z-10">
-        <div className="max-w-5xl mx-auto text-center">
-          {/* Live Price Ticker */}
-          <div className="flex justify-center mb-8 animate-fade-in">
-            <LivePriceTicker />
-          </div>
-
-          {/* Badge */}
-          <div className="flex justify-center mb-6 animate-slide-up">
-            <Badge
-              variant="outline"
-              className="px-4 py-2 text-sm border-primary/30 bg-primary/5 backdrop-blur-sm"
-            >
-              <Zap className="w-4 h-4 mr-2 text-primary" />
-              Instant Funding Available
-              <span className="ml-2 px-2 py-0.5 rounded-full bg-primary/20 text-primary text-xs font-bold">
-                NEW
+      {/* Content */}
+      <div className="container mx-auto px-4 pt-32 pb-16 relative z-10">
+        {/* Main Headline */}
+        <div className="text-center mb-12">
+          <div className="mb-8">
+            <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-bold tracking-tighter uppercase">
+              <WordReveal text="TRADE CRYPTO WITH" delay={0} />
+            </h1>
+            <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-bold tracking-tighter uppercase mt-2">
+              <span className="word-reveal stagger-3" style={{ animationDelay: '400ms' }}>
+                $200,000
               </span>
-            </Badge>
+            </h1>
           </div>
 
-          {/* Main Headline */}
-          <h1
-            className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight mb-6 animate-slide-up"
-            style={{ animationDelay: "0.1s" }}
-          >
-            Trade Crypto with
-            <span className="block gradient-text mt-2">Up to $200K Capital</span>
-          </h1>
-
-          {/* Subheadline */}
-          <p
-            className="text-lg sm:text-xl md:text-2xl text-muted-foreground mb-10 max-w-3xl mx-auto animate-slide-up leading-relaxed"
-            style={{ animationDelay: "0.2s" }}
-          >
-            Pass our evaluation in as little as{" "}
-            <span className="text-foreground font-semibold">5 trading days</span>.
-            Keep up to{" "}
-            <span className="text-profit font-semibold">90% of profits</span>.
-            Zero risk to your personal capital.
+          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-12 word-reveal stagger-5" style={{ animationDelay: '600ms' }}>
+            Zero risk to your capital. Pass evaluation in 5 days.
+            <br className="hidden sm:block" />
+            Keep up to 90% of profits.
           </p>
 
           {/* CTA Buttons */}
-          <div
-            className="flex flex-col sm:flex-row gap-4 justify-center mb-16 animate-slide-up"
-            style={{ animationDelay: "0.3s" }}
-          >
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16 word-reveal stagger-6" style={{ animationDelay: '700ms' }}>
             <Link href="/signup">
-              <Button variant="glow" size="2xl" className="group min-w-[220px]">
+              <button className="btn-sharp btn-sharp-white px-10 py-4 text-base hover-jiggle">
                 Start Your Challenge
-                <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
-              </Button>
+              </button>
             </Link>
             <Link href="#how-it-works">
-              <Button variant="outline" size="2xl" className="min-w-[180px]">
+              <button className="btn-sharp btn-sharp-outline px-10 py-4 text-base">
                 How It Works
-              </Button>
+              </button>
             </Link>
           </div>
+        </div>
 
-          {/* Trust indicators */}
-          <div
-            className="flex flex-wrap justify-center gap-6 mb-16 animate-slide-up"
-            style={{ animationDelay: "0.35s" }}
-          >
-            {[
-              { icon: CheckCircle2, label: "No Hidden Fees" },
-              { icon: Shield, label: "Secure Platform" },
-              { icon: Clock, label: "24/7 Trading" },
-              { icon: Zap, label: "Instant Payouts" },
-            ].map((item) => (
-              <div
-                key={item.label}
-                className="flex items-center gap-2 text-sm text-muted-foreground"
-              >
-                <item.icon className="h-4 w-4 text-profit" />
-                {item.label}
-              </div>
-            ))}
-          </div>
+        {/* KPI Wall */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 max-w-5xl mx-auto">
+          <KPITile
+            value={2800000}
+            prefix="$"
+            suffix=""
+            label="Paid Out"
+            sublabel="This Month"
+            delay={800}
+          />
+          <KPITile
+            value={12543}
+            label="Active Traders"
+            sublabel="Trading Now"
+            delay={900}
+          />
+          <KPITile
+            value={90}
+            suffix="%"
+            label="Profit Split"
+            sublabel="Industry Best"
+            delay={1000}
+            isProfit
+          />
+          <KPITile
+            value={200}
+            prefix="<"
+            suffix="ms"
+            label="Execution"
+            sublabel="Ultra-Fast"
+            delay={1100}
+          />
+        </div>
 
-          {/* Stats Grid */}
-          <div
-            className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 max-w-4xl mx-auto animate-slide-up"
-            style={{ animationDelay: "0.4s" }}
-          >
-            {[
-              {
-                value: 2847,
-                prefix: "$",
-                suffix: "K+",
-                label: "Payouts This Month",
-                highlight: true,
-              },
-              {
-                value: 12543,
-                prefix: "",
-                suffix: "+",
-                label: "Active Traders",
-                highlight: false,
-              },
-              {
-                value: 90,
-                prefix: "",
-                suffix: "%",
-                label: "Profit Split",
-                highlight: true,
-                isProfit: true,
-              },
-              {
-                value: 200,
-                prefix: "<",
-                suffix: "ms",
-                label: "Execution Speed",
-                highlight: false,
-                isStatic: true,
-              },
-            ].map((stat, index) => (
-              <div
-                key={stat.label}
-                className="relative group p-4 rounded-2xl bg-card/40 border border-border/50 backdrop-blur-sm hover:bg-card/60 transition-all duration-300"
-              >
-                <div
-                  className={cn(
-                    "text-3xl md:text-4xl font-bold mb-1",
-                    stat.highlight && "gradient-text",
-                    stat.isProfit && "text-profit"
-                  )}
-                >
-                  {stat.isStatic ? (
-                    <span className="font-mono">
-                      {stat.prefix}
-                      {stat.value}
-                      {stat.suffix}
-                    </span>
-                  ) : (
-                    <AnimatedNumber
-                      value={stat.value}
-                      prefix={stat.prefix}
-                      suffix={stat.suffix}
-                    />
-                  )}
-                </div>
-                <p className="text-sm text-muted-foreground">{stat.label}</p>
-
-                {/* Hover glow effect */}
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-            ))}
-          </div>
+        {/* Trust Indicators */}
+        <div className="flex flex-wrap justify-center gap-8 mt-16 text-sm text-muted-foreground">
+          {[
+            "No Hidden Fees",
+            "Instant Activation",
+            "24/7 Trading",
+            "Weekly Payouts",
+          ].map((item, i) => (
+            <div
+              key={item}
+              className="flex items-center gap-2 word-reveal"
+              style={{ animationDelay: `${1200 + i * 100}ms` }}
+            >
+              <span className="w-1.5 h-1.5 bg-foreground" />
+              <span className="uppercase tracking-wider text-xs">{item}</span>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Bottom Gradient */}
-      <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-background via-background/80 to-transparent" />
+      {/* Bottom Border */}
+      <div className="absolute bottom-0 left-0 right-0 h-px bg-border" />
     </section>
   );
 }

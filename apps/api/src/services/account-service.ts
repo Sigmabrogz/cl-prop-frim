@@ -122,6 +122,7 @@ export async function createAccount(input: CreateAccountInput): Promise<TradingA
   ));
 
   // Create account
+  // TODO: Change status back to 'pending_payment' when payment gateway is integrated
   const [account] = await db
     .insert(tradingAccounts)
     .values({
@@ -139,7 +140,7 @@ export async function createAccount(input: CreateAccountInput): Promise<TradingA
       dailyLossLimit: dailyLossLimit.toString(),
       maxDrawdownLimit: maxDrawdownLimit.toString(),
       profitTarget: profitTarget.toString(),
-      status: 'pending_payment', // Will be activated after payment
+      status: 'active', // MOCK: Auto-activate for testing (change to 'pending_payment' when payment is ready)
     })
     .returning();
 

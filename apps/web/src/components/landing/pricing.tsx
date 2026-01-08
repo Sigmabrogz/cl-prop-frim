@@ -1,25 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardFooter,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  Check,
-  Sparkles,
-  Zap,
-  TrendingUp,
-  ArrowRight,
-  Info,
-  Flame,
-  Layers,
-} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type PlanType = "classic" | "turbo" | "2-step";
@@ -29,499 +11,319 @@ interface Plan {
   accountSize: number;
   price: number;
   popular?: boolean;
-  features: {
-    profitTarget: string;
-    dailyLoss: string;
-    maxDrawdown: string;
-    minDays: number;
-    leverage: string;
-    profitSplit: string;
-    trailingDrawdown: boolean;
-  };
 }
+
+interface PlanConfig {
+  profitTarget: string;
+  dailyLoss: string;
+  maxDrawdown: string;
+  minDays: number;
+  profitSplit: string;
+}
+
+const planConfigs: Record<PlanType, PlanConfig> = {
+  classic: {
+    profitTarget: "10%",
+    dailyLoss: "4%",
+    maxDrawdown: "6%",
+    minDays: 5,
+    profitSplit: "80%",
+  },
+  turbo: {
+    profitTarget: "8%",
+    dailyLoss: "4%",
+    maxDrawdown: "4%",
+    minDays: 5,
+    profitSplit: "70%",
+  },
+  "2-step": {
+    profitTarget: "4% / 9%",
+    dailyLoss: "6%",
+    maxDrawdown: "9%",
+    minDays: 5,
+    profitSplit: "80%",
+  },
+};
 
 const plans: Record<PlanType, Plan[]> = {
   classic: [
-    {
-      name: "Starter",
-      accountSize: 2500,
-      price: 35,
-      features: {
-        profitTarget: "10%",
-        dailyLoss: "4%",
-        maxDrawdown: "6%",
-        minDays: 5,
-        leverage: "5x",
-        profitSplit: "80%",
-        trailingDrawdown: true,
-      },
-    },
-    {
-      name: "Basic",
-      accountSize: 5000,
-      price: 59,
-      features: {
-        profitTarget: "10%",
-        dailyLoss: "4%",
-        maxDrawdown: "6%",
-        minDays: 5,
-        leverage: "5x",
-        profitSplit: "80%",
-        trailingDrawdown: true,
-      },
-    },
-    {
-      name: "Standard",
-      accountSize: 10000,
-      price: 99,
-      popular: true,
-      features: {
-        profitTarget: "10%",
-        dailyLoss: "4%",
-        maxDrawdown: "6%",
-        minDays: 5,
-        leverage: "5x",
-        profitSplit: "80%",
-        trailingDrawdown: true,
-      },
-    },
-    {
-      name: "Professional",
-      accountSize: 25000,
-      price: 199,
-      features: {
-        profitTarget: "10%",
-        dailyLoss: "4%",
-        maxDrawdown: "6%",
-        minDays: 5,
-        leverage: "5x",
-        profitSplit: "80%",
-        trailingDrawdown: true,
-      },
-    },
-    {
-      name: "Elite",
-      accountSize: 50000,
-      price: 349,
-      features: {
-        profitTarget: "10%",
-        dailyLoss: "4%",
-        maxDrawdown: "6%",
-        minDays: 5,
-        leverage: "5x",
-        profitSplit: "80%",
-        trailingDrawdown: true,
-      },
-    },
+    { name: "Starter", accountSize: 2500, price: 35 },
+    { name: "Basic", accountSize: 5000, price: 59 },
+    { name: "Standard", accountSize: 10000, price: 99, popular: true },
+    { name: "Pro", accountSize: 25000, price: 199 },
+    { name: "Elite", accountSize: 50000, price: 349 },
   ],
   turbo: [
-    {
-      name: "Starter",
-      accountSize: 2500,
-      price: 45,
-      features: {
-        profitTarget: "8%",
-        dailyLoss: "4%",
-        maxDrawdown: "4%",
-        minDays: 5,
-        leverage: "5x",
-        profitSplit: "70%",
-        trailingDrawdown: true,
-      },
-    },
-    {
-      name: "Basic",
-      accountSize: 5000,
-      price: 79,
-      features: {
-        profitTarget: "8%",
-        dailyLoss: "4%",
-        maxDrawdown: "4%",
-        minDays: 5,
-        leverage: "5x",
-        profitSplit: "70%",
-        trailingDrawdown: true,
-      },
-    },
-    {
-      name: "Standard",
-      accountSize: 10000,
-      price: 129,
-      popular: true,
-      features: {
-        profitTarget: "8%",
-        dailyLoss: "4%",
-        maxDrawdown: "4%",
-        minDays: 5,
-        leverage: "5x",
-        profitSplit: "70%",
-        trailingDrawdown: true,
-      },
-    },
-    {
-      name: "Professional",
-      accountSize: 25000,
-      price: 259,
-      features: {
-        profitTarget: "8%",
-        dailyLoss: "4%",
-        maxDrawdown: "4%",
-        minDays: 5,
-        leverage: "5x",
-        profitSplit: "70%",
-        trailingDrawdown: true,
-      },
-    },
-    {
-      name: "Elite",
-      accountSize: 50000,
-      price: 449,
-      features: {
-        profitTarget: "8%",
-        dailyLoss: "4%",
-        maxDrawdown: "4%",
-        minDays: 5,
-        leverage: "5x",
-        profitSplit: "70%",
-        trailingDrawdown: true,
-      },
-    },
-    {
-      name: "Master",
-      accountSize: 100000,
-      price: 749,
-      features: {
-        profitTarget: "8%",
-        dailyLoss: "4%",
-        maxDrawdown: "4%",
-        minDays: 5,
-        leverage: "5x",
-        profitSplit: "70%",
-        trailingDrawdown: true,
-      },
-    },
+    { name: "Starter", accountSize: 2500, price: 45 },
+    { name: "Basic", accountSize: 5000, price: 79 },
+    { name: "Standard", accountSize: 10000, price: 129, popular: true },
+    { name: "Pro", accountSize: 25000, price: 259 },
+    { name: "Elite", accountSize: 50000, price: 449 },
   ],
   "2-step": [
-    {
-      name: "Starter",
-      accountSize: 2500,
-      price: 25,
-      features: {
-        profitTarget: "4% / 9%",
-        dailyLoss: "6%",
-        maxDrawdown: "9%",
-        minDays: 5,
-        leverage: "5x",
-        profitSplit: "80%",
-        trailingDrawdown: true,
-      },
-    },
-    {
-      name: "Basic",
-      accountSize: 5000,
-      price: 45,
-      features: {
-        profitTarget: "4% / 9%",
-        dailyLoss: "6%",
-        maxDrawdown: "9%",
-        minDays: 5,
-        leverage: "5x",
-        profitSplit: "80%",
-        trailingDrawdown: true,
-      },
-    },
-    {
-      name: "Standard",
-      accountSize: 10000,
-      price: 79,
-      popular: true,
-      features: {
-        profitTarget: "4% / 9%",
-        dailyLoss: "6%",
-        maxDrawdown: "9%",
-        minDays: 5,
-        leverage: "5x",
-        profitSplit: "80%",
-        trailingDrawdown: true,
-      },
-    },
-    {
-      name: "Professional",
-      accountSize: 25000,
-      price: 159,
-      features: {
-        profitTarget: "4% / 9%",
-        dailyLoss: "6%",
-        maxDrawdown: "9%",
-        minDays: 5,
-        leverage: "5x",
-        profitSplit: "80%",
-        trailingDrawdown: true,
-      },
-    },
-    {
-      name: "Elite",
-      accountSize: 50000,
-      price: 279,
-      features: {
-        profitTarget: "4% / 9%",
-        dailyLoss: "6%",
-        maxDrawdown: "9%",
-        minDays: 5,
-        leverage: "5x",
-        profitSplit: "80%",
-        trailingDrawdown: true,
-      },
-    },
+    { name: "Starter", accountSize: 2500, price: 25 },
+    { name: "Basic", accountSize: 5000, price: 45 },
+    { name: "Standard", accountSize: 10000, price: 79, popular: true },
+    { name: "Pro", accountSize: 25000, price: 159 },
+    { name: "Elite", accountSize: 50000, price: 279 },
   ],
 };
 
-const planDescriptions: Record<PlanType, { title: string; description: string; icon: React.ReactNode }> = {
-  classic: {
-    title: "Classic Challenge",
-    description: "Balanced rules with 10% profit target. Perfect for consistent traders.",
-    icon: <Zap className="w-4 h-4" />,
-  },
-  turbo: {
-    title: "Turbo Challenge",
-    description: "Lower 8% target with tighter 4% drawdown. Get funded faster.",
-    icon: <Flame className="w-4 h-4" />,
-  },
-  "2-step": {
-    title: "2-Step Challenge",
-    description: "Two phases with easier targets. Lowest entry fee.",
-    icon: <Layers className="w-4 h-4" />,
-  },
+const planDescriptions: Record<PlanType, string> = {
+  classic: "Balanced rules with 10% profit target. Perfect for consistent traders.",
+  turbo: "Lower 8% target with tighter 4% drawdown. Get funded faster.",
+  "2-step": "Two phases with easier targets. Lowest entry fee.",
 };
-
-const includedFeatures = [
-  "Real-time execution",
-  "No time limits",
-  "Weekly payouts",
-  "24/7 support",
-  "Trailing drawdown",
-  "Up to 90% profit split",
-];
-
-function PricingCard({
-  plan,
-  type,
-}: {
-  plan: Plan;
-  type: PlanType;
-}) {
-  return (
-    <Card
-      variant={plan.popular ? "glow" : "default"}
-      className={cn(
-        "relative overflow-hidden transition-all duration-500",
-        plan.popular && "scale-[1.02] shadow-2xl shadow-primary/20 border-primary/50"
-      )}
-    >
-      {/* Popular badge */}
-      {plan.popular && (
-        <div className="absolute -top-px left-0 right-0 h-1 bg-gradient-to-r from-primary via-warning to-primary" />
-      )}
-
-      {plan.popular && (
-        <div className="absolute top-4 right-4">
-          <Badge variant="primary" className="gap-1">
-            <Sparkles className="w-3 h-3" />
-            Most Popular
-          </Badge>
-        </div>
-      )}
-
-      <CardHeader className="text-center pt-8 pb-6">
-        <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-          {plan.name}
-        </p>
-        <div className="mb-1">
-          <span className="text-5xl font-bold font-mono">
-            ${plan.accountSize.toLocaleString()}
-          </span>
-        </div>
-        <p className="text-muted-foreground">Account Size</p>
-      </CardHeader>
-
-      <CardContent className="space-y-6 px-6">
-        {/* Price */}
-        <div className="text-center p-4 rounded-xl bg-background-secondary border border-border/50">
-          <div className="flex items-baseline justify-center gap-1">
-            <span className="text-sm text-muted-foreground">$</span>
-            <span className="text-4xl font-bold gradient-text">{plan.price}</span>
-          </div>
-          <p className="text-sm text-muted-foreground mt-1">One-time fee</p>
-        </div>
-
-        {/* Rules */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between py-2 border-b border-border/50">
-            <span className="text-sm text-muted-foreground">Profit Target</span>
-            <span className="text-sm font-semibold text-profit">{plan.features.profitTarget}</span>
-          </div>
-          <div className="flex items-center justify-between py-2 border-b border-border/50">
-            <span className="text-sm text-muted-foreground">Daily Loss Limit</span>
-            <span className="text-sm font-semibold text-loss">{plan.features.dailyLoss}</span>
-          </div>
-          <div className="flex items-center justify-between py-2 border-b border-border/50">
-            <span className="text-sm text-muted-foreground">Max Drawdown</span>
-            <span className="text-sm font-semibold text-loss">{plan.features.maxDrawdown}</span>
-          </div>
-          <div className="flex items-center justify-between py-2 border-b border-border/50">
-            <span className="text-sm text-muted-foreground">Min Trading Days</span>
-            <span className="text-sm font-semibold">{plan.features.minDays} days</span>
-          </div>
-          <div className="flex items-center justify-between py-2 border-b border-border/50">
-            <span className="text-sm text-muted-foreground">Max Leverage</span>
-            <span className="text-sm font-semibold">{plan.features.leverage}</span>
-          </div>
-          <div className="flex items-center justify-between py-2 border-b border-border/50">
-            <span className="text-sm text-muted-foreground">Profit Split</span>
-            <span className="text-sm font-bold text-profit">{plan.features.profitSplit}</span>
-          </div>
-          <div className="flex items-center justify-between py-2">
-            <span className="text-sm text-muted-foreground">Trailing Drawdown</span>
-            <Badge variant={plan.features.trailingDrawdown ? "success" : "secondary"} className="text-xs">
-              {plan.features.trailingDrawdown ? "Yes" : "No"}
-            </Badge>
-          </div>
-        </div>
-      </CardContent>
-
-      <CardFooter className="px-6 pb-8 pt-4">
-        <Link href="/signup" className="w-full">
-          <Button
-            variant={plan.popular ? "glow" : "outline"}
-            size="lg"
-            fullWidth
-            className="group"
-          >
-            Get Started
-            <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-          </Button>
-        </Link>
-      </CardFooter>
-    </Card>
-  );
-}
 
 export function Pricing() {
   const [planType, setPlanType] = useState<PlanType>("classic");
+  const [underlineStyle, setUnderlineStyle] = useState({ left: 0, width: 0 });
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
+  const sectionRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (tabsRef.current) {
+      const activeTab = tabsRef.current.querySelector(`[data-tab="${planType}"]`) as HTMLElement;
+      if (activeTab) {
+        setUnderlineStyle({
+          left: activeTab.offsetLeft,
+          width: activeTab.offsetWidth,
+        });
+      }
+    }
+  }, [planType]);
+
+  const currentPlans = plans[planType];
+  const currentConfig = planConfigs[planType];
 
   return (
-    <section id="pricing" className="py-24 md:py-32 relative overflow-hidden">
-      {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/5 rounded-full blur-[200px]" />
-
+    <section
+      id="pricing"
+      ref={sectionRef}
+      className="py-24 md:py-32 bg-background-secondary/30 relative"
+    >
       <div className="container mx-auto px-4 relative z-10">
-        {/* Header */}
+        {/* Section Header */}
         <div className="text-center mb-12">
-          <Badge variant="outline" className="mb-4 px-4 py-1.5">
-            <TrendingUp className="w-4 h-4 mr-2 text-primary" />
-            Transparent Pricing
-          </Badge>
-
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
-            Choose Your <span className="gradient-text">Challenge</span>
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold uppercase tracking-tight mb-4">
+            Choose Your Challenge
           </h2>
-
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-10">
-            Select a challenge type that matches your trading style. No hidden fees, no surprises.
+          <p className="text-muted-foreground max-w-xl mx-auto mb-8">
+            Select a challenge type that matches your trading style. No hidden fees.
           </p>
 
-          {/* 3-Way Plan Type Toggle */}
-          <div className="inline-flex items-center gap-1 p-1.5 rounded-2xl bg-card border border-border">
-            <button
-              onClick={() => setPlanType("classic")}
-              className={cn(
-                "relative px-5 py-3 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center gap-2",
-                planType === "classic"
-                  ? "bg-primary text-primary-foreground shadow-lg"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <Zap className="w-4 h-4" />
-              Classic
-            </button>
-            <button
-              onClick={() => setPlanType("turbo")}
-              className={cn(
-                "relative px-5 py-3 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center gap-2",
-                planType === "turbo"
-                  ? "bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <Flame className="w-4 h-4" />
-              Turbo
-            </button>
-            <button
-              onClick={() => setPlanType("2-step")}
-              className={cn(
-                "relative px-5 py-3 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center gap-2",
-                planType === "2-step"
-                  ? "bg-primary text-primary-foreground shadow-lg"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <Layers className="w-4 h-4" />
-              2-Step
-            </button>
+          {/* Plan Type Tabs with Sliding Underline */}
+          <div className="inline-block relative" ref={tabsRef}>
+            <div className="flex gap-1 p-1 bg-background-secondary border border-border">
+              {(["classic", "turbo", "2-step"] as PlanType[]).map((type) => (
+                <button
+                  key={type}
+                  data-tab={type}
+                  onClick={() => setPlanType(type)}
+                  className={cn(
+                    "px-6 py-3 text-sm font-medium uppercase tracking-wider transition-colors relative z-10",
+                    planType === type
+                      ? "text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {type === "2-step" ? "2-Step" : type.charAt(0).toUpperCase() + type.slice(1)}
+                </button>
+              ))}
+            </div>
+            {/* Sliding Underline */}
+            <div
+              className="absolute bottom-1 h-0.5 bg-foreground transition-all duration-300 ease-out"
+              style={{
+                left: underlineStyle.left,
+                width: underlineStyle.width,
+              }}
+            />
           </div>
 
-          <p className="text-sm text-muted-foreground mt-4 flex items-center justify-center gap-2">
-            <Info className="h-4 w-4" />
-            {planDescriptions[planType].description}
+          <p className="text-sm text-muted-foreground mt-4">
+            {planDescriptions[planType]}
           </p>
         </div>
 
-        {/* Pricing Grid */}
-        <div className={cn(
-          "grid gap-6 max-w-7xl mx-auto mb-16",
-          plans[planType].length <= 4 ? "md:grid-cols-2 lg:grid-cols-4" : 
-          plans[planType].length === 5 ? "md:grid-cols-2 lg:grid-cols-5" : 
-          "md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
-        )}>
-          {plans[planType].map((plan) => (
-            <PricingCard key={plan.accountSize} plan={plan} type={planType} />
-          ))}
+        {/* Pricing Table */}
+        <div className="max-w-6xl mx-auto overflow-x-auto">
+          <table className="data-table w-full">
+            <thead>
+              <tr>
+                <th className="text-left">Account</th>
+                {currentPlans.map((plan) => (
+                  <th
+                    key={plan.accountSize}
+                    className={cn(
+                      "text-center relative",
+                      plan.popular && "bg-foreground text-background"
+                    )}
+                  >
+                    {plan.popular && (
+                      <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-widest text-foreground bg-background px-2 py-0.5 border border-foreground">
+                        Popular
+                      </span>
+                    )}
+                    <span className="display-mono">${plan.accountSize.toLocaleString()}</span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="text-muted-foreground text-sm">Fee</td>
+                {currentPlans.map((plan) => (
+                  <td
+                    key={plan.accountSize}
+                    className={cn(
+                      "text-center display-mono text-lg font-bold",
+                      plan.popular && "bg-foreground/5"
+                    )}
+                  >
+                    ${plan.price}
+                  </td>
+                ))}
+              </tr>
+              <tr>
+                <td className="text-muted-foreground text-sm">Profit Target</td>
+                {currentPlans.map((plan) => (
+                  <td
+                    key={plan.accountSize}
+                    className={cn(
+                      "text-center display-mono text-profit",
+                      plan.popular && "bg-foreground/5"
+                    )}
+                  >
+                    {currentConfig.profitTarget}
+                  </td>
+                ))}
+              </tr>
+              <tr>
+                <td className="text-muted-foreground text-sm">Daily Loss</td>
+                {currentPlans.map((plan) => (
+                  <td
+                    key={plan.accountSize}
+                    className={cn(
+                      "text-center display-mono text-loss",
+                      plan.popular && "bg-foreground/5"
+                    )}
+                  >
+                    {currentConfig.dailyLoss}
+                  </td>
+                ))}
+              </tr>
+              <tr>
+                <td className="text-muted-foreground text-sm">Max Drawdown</td>
+                {currentPlans.map((plan) => (
+                  <td
+                    key={plan.accountSize}
+                    className={cn(
+                      "text-center display-mono text-loss",
+                      plan.popular && "bg-foreground/5"
+                    )}
+                  >
+                    {currentConfig.maxDrawdown}
+                  </td>
+                ))}
+              </tr>
+              <tr>
+                <td className="text-muted-foreground text-sm">Min Days</td>
+                {currentPlans.map((plan) => (
+                  <td
+                    key={plan.accountSize}
+                    className={cn(
+                      "text-center display-mono",
+                      plan.popular && "bg-foreground/5"
+                    )}
+                  >
+                    {currentConfig.minDays}
+                  </td>
+                ))}
+              </tr>
+              <tr>
+                <td className="text-muted-foreground text-sm">Profit Split</td>
+                {currentPlans.map((plan) => (
+                  <td
+                    key={plan.accountSize}
+                    className={cn(
+                      "text-center display-mono text-profit font-bold",
+                      plan.popular && "bg-foreground/5"
+                    )}
+                  >
+                    {currentConfig.profitSplit}
+                  </td>
+                ))}
+              </tr>
+              <tr>
+                <td></td>
+                {currentPlans.map((plan) => (
+                  <td
+                    key={plan.accountSize}
+                    className={cn(
+                      "text-center py-4",
+                      plan.popular && "bg-foreground/5"
+                    )}
+                  >
+                    <Link href="/signup">
+                      <button
+                        className={cn(
+                          "btn-sharp px-4 py-2 text-xs w-full",
+                          plan.popular
+                            ? "btn-sharp-white"
+                            : "btn-sharp-outline"
+                        )}
+                      >
+                        Select
+                      </button>
+                    </Link>
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
         </div>
 
-        {/* Included Features */}
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-8">
-            <h3 className="text-xl font-semibold mb-2">All Plans Include</h3>
-            <p className="text-muted-foreground">Everything you need to trade professionally</p>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {includedFeatures.map((feature) => (
-              <div
-                key={feature}
-                className="flex items-center gap-3 p-4 rounded-xl bg-card/50 border border-border/50"
-              >
-                <div className="p-1 rounded-full bg-profit/10">
-                  <Check className="w-4 h-4 text-profit" />
-                </div>
-                <span className="text-sm font-medium">{feature}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Trust badges */}
-        <div className="flex flex-wrap justify-center gap-6 md:gap-12 mt-16 pt-16 border-t border-border/50">
+        {/* Bottom Stats */}
+        <div className="flex flex-wrap justify-center gap-8 md:gap-16 mt-16 pt-12 border-t border-border">
           {[
             { label: "Instant Activation", value: "< 5 min" },
             { label: "Payment Methods", value: "Crypto & Card" },
             { label: "Success Rate", value: "32%" },
-            { label: "Avg. Payout Time", value: "24 hours" },
-          ].map((stat) => (
-            <div key={stat.label} className="text-center">
-              <p className="text-2xl font-bold font-mono">{stat.value}</p>
-              <p className="text-sm text-muted-foreground">{stat.label}</p>
+            { label: "Avg Payout Time", value: "24 hours" },
+          ].map((stat, i) => (
+            <div
+              key={stat.label}
+              className={cn(
+                "text-center word-reveal",
+                isVisible && "opacity-100"
+              )}
+              style={{ animationDelay: `${i * 100}ms` }}
+            >
+              <div className="display-mono text-2xl font-bold mb-1">
+                {stat.value}
+              </div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                {stat.label}
+              </div>
             </div>
           ))}
         </div>
