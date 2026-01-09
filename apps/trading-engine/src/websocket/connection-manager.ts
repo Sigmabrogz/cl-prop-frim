@@ -14,8 +14,8 @@ export interface ClientConnection {
   connectedAt: Date;
 }
 
-// Throttle config: max 10 price updates per second per symbol
-const PRICE_UPDATE_THROTTLE_MS = 100; // 100ms = 10 updates/sec max
+// Throttle config: max 20 price updates per second per symbol
+const PRICE_UPDATE_THROTTLE_MS = 50; // 50ms = 20 updates/sec max
 const MAX_BUFFERED_AMOUNT = 65536; // 64KB - skip if buffer exceeds this
 
 export class ConnectionManager {
