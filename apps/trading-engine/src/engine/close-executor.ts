@@ -220,7 +220,8 @@ async function executeClose(
     : position.marginUsed;
 
   // 7. Update account state IN MEMORY
-  const newCurrentBalance = account.currentBalance + marginReleased + netPnl;
+  // Note: currentBalance only changes by netPnl (margin is tracked separately in availableMargin/totalMarginUsed)
+  const newCurrentBalance = account.currentBalance + netPnl;
   const newAvailableMargin = account.availableMargin + marginReleased + netPnl;
   const newTotalMarginUsed = account.totalMarginUsed - marginReleased;
   const newDailyPnl = account.dailyPnl + netPnl;

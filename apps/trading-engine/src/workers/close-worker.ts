@@ -235,9 +235,10 @@ export class CloseWorker {
       await tx.delete(positions).where(eq(positions.id, position.id));
 
       // 5. Update account balances
+      // Note: currentBalance only changes by netPnl (margin is tracked separately)
       const currentBalance = parseFloat(account.currentBalance);
-      const newBalance = currentBalance + netPnl + position.marginUsed; // Return margin + P&L
-      const newAvailableMargin = parseFloat(account.availableMargin) + position.marginUsed;
+      const newBalance = currentBalance + netPnl; // Only P&L affects balance
+      const newAvailableMargin = parseFloat(account.availableMargin) + position.marginUsed + netPnl;
       const newTotalMarginUsed = parseFloat(account.totalMarginUsed) - position.marginUsed;
 
       // Update peak balance if new high
