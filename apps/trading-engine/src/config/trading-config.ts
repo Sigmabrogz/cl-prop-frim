@@ -38,23 +38,24 @@ export const DEFAULT_SPREAD_BPS = parseInt(
 /**
  * Per-symbol spreads in basis points
  * Can be overridden via SYMBOL_SPREADS env var (JSON format)
+ * Note: 1 bps = 0.01%, so BTC at $90k with 1 bps = ~$9 spread
  */
 const DEFAULT_SYMBOL_SPREADS: Record<string, number> = {
-  BTCUSDT: 5,    // 0.05%
-  ETHUSDT: 5,
-  BNBUSDT: 8,
-  SOLUSDT: 10,
-  XRPUSDT: 10,
-  ADAUSDT: 12,
-  DOGEUSDT: 15,
-  DOTUSDT: 10,
-  LINKUSDT: 10,
-  MATICUSDT: 12,
-  AVAXUSDT: 10,
-  LTCUSDT: 8,
-  UNIUSDT: 12,
-  ATOMUSDT: 10,
-  XLMUSDT: 12,
+  BTCUSDT: 1,    // 0.01% (~$9 on $90k)
+  ETHUSDT: 1,    // 0.01%
+  BNBUSDT: 2,    // 0.02%
+  SOLUSDT: 2,
+  XRPUSDT: 2,
+  ADAUSDT: 3,
+  DOGEUSDT: 3,
+  DOTUSDT: 2,
+  LINKUSDT: 2,
+  MATICUSDT: 3,
+  AVAXUSDT: 2,
+  LTCUSDT: 2,
+  UNIUSDT: 3,
+  ATOMUSDT: 2,
+  XLMUSDT: 3,
 };
 
 // Parse custom spreads from environment if provided
