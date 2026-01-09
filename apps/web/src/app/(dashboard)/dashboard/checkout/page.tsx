@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { plansApi, accountsApi, type EvaluationPlan } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -22,7 +22,7 @@ import {
 
 type PaymentMethod = "card" | "crypto" | null;
 
-export default function CheckoutPage() {
+function CheckoutContent() {
   const [plan, setPlan] = useState<EvaluationPlan | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPurchasing, setIsPurchasing] = useState(false);
@@ -342,5 +342,25 @@ export default function CheckoutPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Loading fallback component
+function CheckoutLoading() {
+  return (
+    <div className="max-w-4xl mx-auto py-8">
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    </div>
+  );
+}
+
+// Main page component with Suspense boundary
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={<CheckoutLoading />}>
+      <CheckoutContent />
+    </Suspense>
   );
 }
