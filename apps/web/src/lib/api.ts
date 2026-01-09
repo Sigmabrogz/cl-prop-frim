@@ -429,10 +429,12 @@ export interface Trade {
   closedAt: string;
   closeReason: string;
   grossPnl: string;
-  fees: string;
+  totalFees: string;      // DB field name
+  fees?: string;          // Alias for backwards compat
   fundingFee: string;
   netPnl: string;
-  holdDurationSeconds: number;
+  durationSeconds: number; // DB field name
+  holdDurationSeconds?: number; // Alias for backwards compat
 }
 
 export interface TradeEvent {

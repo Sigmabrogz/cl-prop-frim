@@ -133,9 +133,11 @@ function OrderRow({ order }: { order: Order }) {
 function TradeRow({ trade }: { trade: Trade }) {
   const grossPnl = parseFloat(trade.grossPnl);
   const netPnl = parseFloat(trade.netPnl);
-  const tradingFees = parseFloat(trade.fees || '0');
+  // Use totalFees (DB field) or fees (legacy alias)
+  const tradingFees = parseFloat(trade.totalFees || trade.fees || '0');
   const fundingFee = parseFloat(trade.fundingFee || '0');
-  const totalFees = tradingFees + fundingFee;
+  // Use durationSeconds (DB field) or holdDurationSeconds (legacy alias)
+  const durationSecs = trade.durationSeconds ?? trade.holdDurationSeconds ?? 0;
   const isWin = netPnl > 0;
 
   return (
@@ -188,7 +190,7 @@ function TradeRow({ trade }: { trade: Trade }) {
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Duration</p>
-          <p className="font-mono text-xs">{formatDuration(trade.holdDurationSeconds)}</p>
+          <p className="font-mono text-xs">{formatDuration(durationSecs)}</p>
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Closed</p>
