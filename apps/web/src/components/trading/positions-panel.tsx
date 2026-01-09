@@ -532,11 +532,11 @@ const PositionRow = memo(function PositionRow({ position, onClose, onModify, cur
   const duration = useMemo(() => formatDuration(position.openedAt), [position.openedAt, currentTime]);
 
   // Memoize expensive calculations
+  // Use Binance mid price for P&L calculation (fair market value, not our bid/ask)
   const { currentPrice, unrealizedPnl, roe, isNearLiquidation } = useMemo(() => {
+    // Use binanceMid for fair P&L calculation (what the market price actually is)
     const currPrice = price
-      ? position.side === "LONG"
-        ? price.bid
-        : price.ask
+      ? price.binanceMid
       : position.entryPrice;
 
     const priceDiff = position.side === "LONG"

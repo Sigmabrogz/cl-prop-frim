@@ -31,8 +31,9 @@ export function OrderBook({ symbol, levels = 12, compact = false, onPriceClick, 
   const orderBookData = useMemo(() => {
     if (!price || !price.bid || !price.ask) return null;
 
-    const midPrice = (price.bid + price.ask) / 2;
-    const spread = price.spread || (price.ask - price.bid);
+    // Use binanceMid for display, spread is already in dollars
+    const midPrice = price.binanceMid;
+    const spread = price.spread;
 
     if (isNaN(midPrice) || midPrice <= 0) return null;
 
@@ -196,7 +197,7 @@ export function OrderBook({ symbol, levels = 12, compact = false, onPriceClick, 
         <div className="flex items-center justify-between text-[10px] mb-1.5">
           <span className="text-muted-foreground font-sans">Spread</span>
           <span className="font-mono text-foreground/70">
-            {formatNumber(spread, 2)} <span className="text-muted-foreground">({((spread / midPrice) * 100).toFixed(3)}%)</span>
+            {formatCurrency(spread, { decimals: 2 })} <span className="text-muted-foreground">({((spread / midPrice) * 100).toFixed(3)}%)</span>
           </span>
         </div>
 

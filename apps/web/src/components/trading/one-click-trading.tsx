@@ -139,14 +139,20 @@ export function OneClickTrading({
       {/* Order summary */}
       <div className="p-2 rounded bg-muted/50 text-xs space-y-1">
         <div className="flex justify-between">
+          <span className="text-muted-foreground">Market Price</span>
+          <span className="font-mono">
+            {formatCurrency(price.binanceMid, { decimals: 2 })}
+          </span>
+        </div>
+        <div className="flex justify-between">
           <span className="text-muted-foreground">Position Value</span>
           <span className="font-mono">
-            {formatCurrency(selectedQty * ((price.bid + price.ask) / 2))}
+            {formatCurrency(selectedQty * price.binanceMid)}
           </span>
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">Spread</span>
-          <span className="font-mono">{formatNumber(price.spread, 2)}</span>
+          <span className="font-mono">{formatCurrency(price.spread, { decimals: 2 })}</span>
         </div>
       </div>
 

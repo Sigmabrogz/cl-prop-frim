@@ -60,20 +60,23 @@ export function OrderForm({
   const price = useTradingStore((state) => state.prices[symbol]);
   const lastOrderResponse = useTradingStore((state) => state.lastOrderResponse);
 
-  const currentPrice = price ? (side === "LONG" ? price.ask : price.bid) : 0;
+  // Market price (what's shown on charts/TradingView)
+  const marketPrice = price ? price.binanceMid : 0;
+  // Execution price (includes spread - what user actually pays/receives)
+  const executionPrice = price ? (side === "LONG" ? price.ask : price.bid) : 0;
   const spread = price ? price.spread : 0;
 
-  // Calculate margin required
+  // Calculate margin required using execution price
   const qty = parseFloat(quantity) || 0;
-  const marginRequired = (qty * currentPrice) / leverage;
+  const marginRequired = (qty * executionPrice) / leverage;
   const canAfford = marginRequired <= availableBalance;
-  const positionValue = qty * currentPrice;
+  const positionValue = qty * executionPrice;
 
-  // Calculate estimated P&L for TP/SL
+  // Calculate estimated P&L for TP/SL (using market price for display)
   const tpPrice = parseFloat(takeProfit) || 0;
   const slPrice = parseFloat(stopLoss) || 0;
-  const tpPnl = tpPrice ? (side === "LONG" ? tpPrice - currentPrice : currentPrice - tpPrice) * qty : 0;
-  const slPnl = slPrice ? (side === "LONG" ? slPrice - currentPrice : currentPrice - slPrice) * qty : 0;
+  const tpPnl = tpPrice ? (side === "LONG" ? tpPrice - executionPrice : executionPrice - tpPrice) * qty : 0;
+  const slPnl = slPrice ? (side === "LONG" ? slPrice - executionPrice : executionPrice - slPrice) * qty : 0;
 
   // Fee calculations (matching backend: 0.05% = 5 bps)
   const FEE_RATE = 0.0005;
@@ -82,14 +85,14 @@ export function OrderForm({
   const totalFees = entryFee + exitFeeEstimate;
   const totalCost = marginRequired + entryFee;
 
-  // Liquidation price calculation
+  // Liquidation price calculation (based on execution price)
   const MAINTENANCE_MARGIN_PCT = 0.005; // 0.5%
   const liquidationPrice = side === "LONG"
-    ? currentPrice * (1 - (1 / leverage) + MAINTENANCE_MARGIN_PCT)
-    : currentPrice * (1 + (1 / leverage) - MAINTENANCE_MARGIN_PCT);
+    ? executionPrice * (1 - (1 / leverage) + MAINTENANCE_MARGIN_PCT)
+    : executionPrice * (1 + (1 / leverage) - MAINTENANCE_MARGIN_PCT);
   const liquidationDistance = side === "LONG"
-    ? ((currentPrice - liquidationPrice) / currentPrice) * 100
-    : ((liquidationPrice - currentPrice) / currentPrice) * 100;
+    ? ((executionPrice - liquidationPrice) / executionPrice) * 100
+    : ((liquidationPrice - executionPrice) / executionPrice) * 100;
 
   // Handle prefill from order book clicks
   useEffect(() => {
@@ -193,7 +196,7 @@ export function OrderForm({
 
   // Quick quantity buttons
   const setQuickQuantity = (percentage: number) => {
-    const maxQty = (availableBalance * leverage) / currentPrice;
+    const maxQty = (availableBalance * leverage) / executionPrice;
     const qty = (maxQty * percentage) / 100;
     setQuantity(qty.toFixed(6));
   };
@@ -265,21 +268,31 @@ export function OrderForm({
         ))}
       </div>
 
-      {/* Price display */}
+      {/* Price display - Market Price & Execution Price */}
       <div className="p-3 rounded-xl bg-gradient-to-br from-background-secondary to-background-tertiary border border-border/50">
+        {/* Market Price (what's on TradingView) */}
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-xs text-muted-foreground">Market Price</span>
+          <span className="font-mono font-semibold text-sm">
+            {formatCurrency(marketPrice, { decimals: 2 })}
+          </span>
+        </div>
+        {/* Execution Price (what user pays/receives) */}
         <div className="flex justify-between items-center">
-          <span className="text-sm text-muted-foreground">Entry Price</span>
+          <span className="text-sm text-muted-foreground">
+            {side === "LONG" ? "Buy" : "Sell"} Price
+          </span>
           <div className="text-right">
             <span className={cn(
               "text-xl font-mono font-bold tabular-nums",
               side === "LONG" ? "text-profit" : "text-loss"
             )}>
-              {formatCurrency(currentPrice, { decimals: 2 })}
+              {formatCurrency(executionPrice, { decimals: 2 })}
             </span>
           </div>
         </div>
         <div className="flex justify-between text-xs text-muted-foreground mt-1.5">
-          <span>Spread: {formatNumber(spread, 2)}</span>
+          <span>Spread: {formatCurrency(spread, { decimals: 2 })}</span>
           <span className="flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-profit animate-pulse" />
             Live
@@ -317,7 +330,7 @@ export function OrderForm({
             Quantity
           </Label>
           <span id="quantity-max" className="text-xs text-muted-foreground">
-            Max: <span className="font-mono text-foreground">{formatNumber((availableBalance * leverage) / currentPrice, 4)}</span>
+            Max: <span className="font-mono text-foreground">{formatNumber((availableBalance * leverage) / executionPrice, 4)}</span>
           </span>
         </div>
         <div className="relative">
@@ -614,7 +627,7 @@ export function OrderForm({
             )}
             <span>{side === "LONG" ? "Buy Long" : "Sell Short"}</span>
             <span className="font-mono text-xs opacity-70">
-              @ {formatCurrency(currentPrice, { decimals: 2 })}
+              @ {formatCurrency(executionPrice, { decimals: 2 })}
             </span>
           </>
         )}
@@ -692,7 +705,7 @@ export function OrderForm({
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Entry Price</span>
-                <span className="font-mono">{formatCurrency(currentPrice)}</span>
+                <span className="font-mono">{formatCurrency(executionPrice)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Leverage</span>

@@ -86,9 +86,15 @@ function isPendingOrderArray(value: unknown): value is PendingOrder[] {
 // Types
 export interface PriceData {
   symbol: string;
-  bid: number;
-  ask: number;
-  spread: number;
+  // Binance prices (real market prices for display)
+  binanceMid: number;    // The "market price" everyone sees
+  binanceBid: number;    // Real exchange bid
+  binanceAsk: number;    // Real exchange ask
+  // Our execution prices (with spread markup)
+  bid: number;           // Price user gets when SELLING
+  ask: number;           // Price user pays when BUYING
+  spread: number;        // Dollar spread
+  spreadBps: number;     // Spread in basis points
   timestamp: number;
   // 24h stats from Binance
   priceChange24h: number;
@@ -613,7 +619,14 @@ export function useWebSocket() {
 
             if (!symbol || bid <= 0 || ask <= 0) break;
 
+            // Binance prices (real market prices)
+            const binanceMid = isNumber(message.binanceMid) ? message.binanceMid : (bid + ask) / 2;
+            const binanceBid = isNumber(message.binanceBid) ? message.binanceBid : bid;
+            const binanceAsk = isNumber(message.binanceAsk) ? message.binanceAsk : ask;
+
+            // Spread info
             const spread = isNumber(message.spread) ? message.spread : (ask - bid);
+            const spreadBps = isNumber(message.spreadBps) ? message.spreadBps : 0;
 
             // 24h stats
             const priceChange24h = isNumber(message.priceChange24h) ? message.priceChange24h : 0;
@@ -629,9 +642,13 @@ export function useWebSocket() {
 
             updatePrice(symbol, {
               symbol,
+              binanceMid,
+              binanceBid,
+              binanceAsk,
               bid,
               ask,
               spread,
+              spreadBps,
               timestamp,
               priceChange24h,
               priceChangePercent24h,

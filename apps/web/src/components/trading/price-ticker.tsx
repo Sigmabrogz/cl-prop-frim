@@ -106,7 +106,8 @@ export function PriceTicker({
     );
   }
 
-  const midPrice = (price.bid + price.ask) / 2;
+  // Use Binance mid price for display (real market price)
+  const marketPrice = price.binanceMid;
   // Real 24h change from Binance
   const change24h = price.priceChangePercent24h || 0;
   const isPositive = change24h >= 0;
@@ -135,7 +136,7 @@ export function PriceTicker({
         </div>
         <div className="text-right shrink-0 ml-2">
           <p className="font-mono font-semibold text-sm">
-            {formatPrice(midPrice)}
+            {formatPrice(marketPrice)}
           </p>
           <p className={cn(
             "text-xs font-medium",
@@ -192,7 +193,7 @@ export function PriceTicker({
         </div>
         <div className="flex items-center justify-between gap-1">
           <span className="font-mono font-bold text-sm truncate">
-            {formatPrice(midPrice)}
+            {formatPrice(marketPrice)}
           </span>
           <span className={cn(
             "text-xs font-semibold shrink-0 px-1 py-0.5 rounded",
@@ -222,8 +223,8 @@ export function PriceDisplay({ symbol, showDetails = true }: { symbol: string; s
     );
   }
 
-  // Real 24h change from Binance
-  const midPrice = (price.bid + price.ask) / 2;
+  // Use Binance mid price for display (real market price - matches TradingView)
+  const marketPrice = price.binanceMid;
   const change24h = price.priceChangePercent24h || 0;
   const isPositive = change24h >= 0;
 
@@ -238,11 +239,11 @@ export function PriceDisplay({ symbol, showDetails = true }: { symbol: string; s
         {/* Symbol icon */}
         <CryptoIcon symbol={baseSymbol} size={32} className="shrink-0" />
 
-        {/* Price and symbol */}
+        {/* Price and symbol - show market price (Binance mid) */}
         <div>
           <div className="flex items-center gap-2">
             <span className="text-xl font-mono font-bold tracking-tight">
-              {formatCurrency(price.bid, { decimals: 2 })}
+              {formatCurrency(marketPrice, { decimals: 2 })}
             </span>
             <span className={cn(
               "text-xs font-semibold px-1.5 py-0.5 rounded",
@@ -271,8 +272,8 @@ export function PriceDisplay({ symbol, showDetails = true }: { symbol: string; s
               <span className="font-mono font-semibold text-loss">{formatCurrency(price.ask, { decimals: 2 })}</span>
             </div>
             <div className="flex flex-col">
-              <span className="text-muted-foreground uppercase tracking-wider text-[10px]">Mark</span>
-              <span className="font-mono font-semibold text-blue-500">{formatCurrency(midPrice, { decimals: 2 })}</span>
+              <span className="text-muted-foreground uppercase tracking-wider text-[10px]">Market</span>
+              <span className="font-mono font-semibold text-blue-500">{formatCurrency(marketPrice, { decimals: 2 })}</span>
             </div>
             <div className="flex flex-col">
               <span className="text-muted-foreground uppercase tracking-wider text-[10px]">Spread</span>
@@ -319,15 +320,15 @@ export function MiniPriceTicker({ symbol }: { symbol: string }) {
     );
   }
 
-  const midPrice = (price.bid + price.ask) / 2;
-  // Real 24h change from Binance
+  // Use Binance mid price for display (real market price)
+  const marketPrice = price.binanceMid;
   const change24h = price.priceChangePercent24h || 0;
   const isPositive = change24h >= 0;
 
   return (
     <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-background-tertiary/50">
       <span className="text-xs text-muted-foreground">{baseSymbol}</span>
-      <span className="font-mono font-semibold text-sm">{formatCurrency(midPrice, { decimals: 0 })}</span>
+      <span className="font-mono font-semibold text-sm">{formatCurrency(marketPrice, { decimals: 0 })}</span>
       <span className={cn(
         "text-xs font-medium",
         isPositive ? "text-profit" : "text-loss"

@@ -57,6 +57,12 @@ export class PriceEngine {
     for (const [symbol, spread] of Object.entries(SYMBOL_SPREADS)) {
       this.spreads.set(symbol, spread);
     }
+    // Log spread configuration at startup
+    console.log('[PriceEngine] Spread configuration loaded:');
+    for (const [symbol, spread] of this.spreads.entries()) {
+      console.log(`  ${symbol}: ${spread} bps (${(spread / 100).toFixed(2)}%)`);
+    }
+    console.log(`  DEFAULT: ${DEFAULT_SPREAD_BPS} bps`);
   }
 
   /**

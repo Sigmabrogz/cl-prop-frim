@@ -179,13 +179,21 @@ export function startWebSocketServer(port: number, priceEngine: PriceEngine, mar
     const ticker24h = marketDataServiceRef?.getTicker24h(symbol);
     const fundingRate = marketDataServiceRef?.getFundingRate(symbol);
 
+    // Calculate dollar spread for display
+    const dollarSpread = price.ourAsk - price.ourBid;
+
     connectionManager.broadcastToSubscribers(symbol, {
       type: 'PRICE_UPDATE',
       symbol,
-      bid: price.ourBid,
-      ask: price.ourAsk,
-      spread: price.ourAsk - price.ourBid,
-      midPrice: price.midPrice,
+      // Binance prices (for display - what traders see as "market price")
+      binanceMid: price.midPrice,
+      binanceBid: price.binanceBid,
+      binanceAsk: price.binanceAsk,
+      // Our execution prices (with spread markup)
+      bid: price.ourBid,      // Price user gets when SELLING (SHORT entry, LONG exit)
+      ask: price.ourAsk,      // Price user pays when BUYING (LONG entry, SHORT exit)
+      spread: dollarSpread,   // Dollar spread for display
+      spreadBps: price.spread, // Spread in basis points
       timestamp: price.timestamp,
       // 24h stats
       priceChange24h: ticker24h?.priceChange || 0,
