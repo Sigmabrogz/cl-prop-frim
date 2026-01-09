@@ -268,16 +268,8 @@ export function OrderForm({
         ))}
       </div>
 
-      {/* Price display - Market Price & Execution Price */}
+      {/* Price display - Single price (no spread) */}
       <div className="p-3 rounded-xl bg-gradient-to-br from-background-secondary to-background-tertiary border border-border/50">
-        {/* Market Price (what's on TradingView) */}
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-xs text-muted-foreground">Market Price</span>
-          <span className="font-mono font-semibold text-sm">
-            {formatCurrency(marketPrice, { decimals: 2 })}
-          </span>
-        </div>
-        {/* Execution Price (what user pays/receives) */}
         <div className="flex justify-between items-center">
           <span className="text-sm text-muted-foreground">
             {side === "LONG" ? "Buy" : "Sell"} Price
@@ -292,7 +284,7 @@ export function OrderForm({
           </div>
         </div>
         <div className="flex justify-between text-xs text-muted-foreground mt-1.5">
-          <span>Spread: {formatCurrency(spread, { decimals: 2 })}</span>
+          <span>Fee: 0.05%</span>
           <span className="flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-profit animate-pulse" />
             Live

@@ -75,15 +75,13 @@ export class PriceEngine {
       return;
     }
 
-    // Calculate our prices with spread
-    const spreadBps = this.spreads.get(symbol) || DEFAULT_SPREAD_BPS;
-    const spreadMultiplier = spreadBps / 10000; // Convert bps to decimal
-
+    // Use Binance prices directly - NO spread markup
+    // Revenue comes from trading fees (0.05% entry + 0.05% exit)
     const midPrice = (binanceBid + binanceAsk) / 2;
-    const halfSpread = midPrice * spreadMultiplier;
 
-    const ourBid = midPrice - halfSpread; // Price we buy at (user sells)
-    const ourAsk = midPrice + halfSpread; // Price we sell at (user buys)
+    // Pass through Binance prices directly
+    const ourBid = binanceBid;  // Price user gets when SELLING
+    const ourAsk = binanceAsk;  // Price user pays when BUYING
 
     const priceData: PriceData = {
       symbol,
@@ -92,7 +90,7 @@ export class PriceEngine {
       ourBid,
       ourAsk,
       midPrice,
-      spread: spreadBps,
+      spread: 0, // No spread markup
       timestamp: Date.now(),
     };
 

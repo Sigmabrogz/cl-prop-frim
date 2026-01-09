@@ -261,7 +261,7 @@ export function PriceDisplay({ symbol, showDetails = true }: { symbol: string; s
           {/* Divider */}
           <div className="hidden md:block h-8 w-px bg-border" />
 
-          {/* Bid/Ask/Mark/Spread - Clean grid */}
+          {/* Bid/Ask/24h stats - Clean grid */}
           <div className="hidden md:flex items-center gap-4 text-xs">
             <div className="flex flex-col">
               <span className="text-muted-foreground uppercase tracking-wider text-[10px]">Bid</span>
@@ -272,12 +272,12 @@ export function PriceDisplay({ symbol, showDetails = true }: { symbol: string; s
               <span className="font-mono font-semibold text-loss">{formatCurrency(price.ask, { decimals: 2 })}</span>
             </div>
             <div className="flex flex-col">
-              <span className="text-muted-foreground uppercase tracking-wider text-[10px]">Market</span>
-              <span className="font-mono font-semibold text-blue-500">{formatCurrency(marketPrice, { decimals: 2 })}</span>
+              <span className="text-muted-foreground uppercase tracking-wider text-[10px]">24h High</span>
+              <span className="font-mono font-semibold text-foreground">{formatCurrency(price.high24h, { decimals: 2 })}</span>
             </div>
             <div className="flex flex-col">
-              <span className="text-muted-foreground uppercase tracking-wider text-[10px]">Spread</span>
-              <span className="font-mono font-medium text-foreground/70">{formatNumber(price.spread, 2)}</span>
+              <span className="text-muted-foreground uppercase tracking-wider text-[10px]">24h Low</span>
+              <span className="font-mono font-semibold text-foreground">{formatCurrency(price.low24h, { decimals: 2 })}</span>
             </div>
           </div>
 

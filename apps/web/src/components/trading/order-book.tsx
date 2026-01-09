@@ -191,13 +191,13 @@ export function OrderBook({ symbol, levels = 12, compact = false, onPriceClick, 
         ))}
       </div>
 
-      {/* Spread indicator - Professional compact design */}
+      {/* Mid price and Bid/Ask buttons */}
       <div className="px-2 py-1.5 border-y border-border/50 bg-background-secondary/50">
-        {/* Spread row */}
+        {/* Mid price row */}
         <div className="flex items-center justify-between text-[10px] mb-1.5">
-          <span className="text-muted-foreground font-sans">Spread</span>
-          <span className="font-mono text-foreground/70">
-            {formatCurrency(spread, { decimals: 2 })} <span className="text-muted-foreground">({((spread / midPrice) * 100).toFixed(3)}%)</span>
+          <span className="text-muted-foreground font-sans">Market</span>
+          <span className="font-mono text-foreground font-semibold">
+            {formatCurrency(midPrice, { decimals: 2 })}
           </span>
         </div>
 

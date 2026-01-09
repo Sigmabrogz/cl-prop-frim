@@ -151,8 +151,8 @@ export function OneClickTrading({
           </span>
         </div>
         <div className="flex justify-between">
-          <span className="text-muted-foreground">Spread</span>
-          <span className="font-mono">{formatCurrency(price.spread, { decimals: 2 })}</span>
+          <span className="text-muted-foreground">Fee (0.05%)</span>
+          <span className="font-mono">{formatCurrency(selectedQty * price.binanceMid * 0.0005, { decimals: 2 })}</span>
         </div>
       </div>
 
