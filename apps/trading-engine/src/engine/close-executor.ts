@@ -194,19 +194,14 @@ async function executeClose(
   const exitFee = exitValue * 0.0005; // 0.05% = 5 bps
 
   // 4. Calculate net P&L including funding
-  // For partial close, calculate proportional entry fee and funding
-  const entryFeeForClosed = isPartialClose
-    ? position.entryFee * (quantityToClose / position.quantity)
-    : position.entryFee;
-
   // Funding fees (proportional for partial close)
   const fundingFeeForClosed = isPartialClose
     ? position.accumulatedFunding * (quantityToClose / position.quantity)
     : position.accumulatedFunding;
 
-  // Total fees = entry fee + exit fee + funding fee (not including in totalFees for backwards compat)
-  const tradingFees = entryFeeForClosed + exitFee;
-  const totalFees = tradingFees; // tradingFees only (for backwards compat)
+  // Total fees = exit fee only (entry fee was already deducted when opening)
+  // This makes the math consistent: netPnl = grossPnl - totalFees - fundingFee
+  const totalFees = exitFee;
 
   // Net P&L = Gross P&L - Exit Fee - Funding Fee
   const netPnl = grossPnl - exitFee - fundingFeeForClosed;
