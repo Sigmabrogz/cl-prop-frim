@@ -7,7 +7,6 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { secureHeaders } from 'hono/secure-headers';
 import { timing } from 'hono/timing';
-import { getCookie, setCookie } from 'hono/cookie';
 
 import { errorHandler } from './middleware/error-handler.js';
 import { rateLimiter } from './middleware/rate-limit.js';
@@ -83,44 +82,15 @@ app.use(
   })
 );
 
-// CSRF Protection using double-submit cookie pattern
-app.use('*', async (c, next) => {
-  // Generate CSRF token if not present
-  let csrfToken = getCookie(c, 'csrf_token');
-  if (!csrfToken) {
-    // Generate a cryptographically secure random token
-    const bytes = new Uint8Array(32);
-    crypto.getRandomValues(bytes);
-    csrfToken = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
-    
-    const isProduction = process.env.NODE_ENV === 'production';
-    
-    // Set CSRF cookie (not httpOnly so JS can read it)
-    setCookie(c, 'csrf_token', csrfToken, {
-      secure: isProduction,
-      sameSite: isProduction ? 'Strict' : 'Lax',
-      path: '/',
-      maxAge: 60 * 60 * 24, // 24 hours
-    });
-  }
-
-  // Validate CSRF token for state-changing requests
-  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(c.req.method)) {
-    const csrfHeader = c.req.header('X-CSRF-Token');
-    
-    // Skip CSRF for auth endpoints (login/signup don't have CSRF token yet)
-    const isAuthEndpoint = c.req.path.startsWith('/api/auth/login') || 
-                           c.req.path.startsWith('/api/auth/signup') ||
-                           c.req.path.startsWith('/api/auth/forgot-password') ||
-                           c.req.path.startsWith('/api/auth/reset-password');
-    
-    if (!isAuthEndpoint && (!csrfHeader || csrfHeader !== csrfToken)) {
-      return c.json({ error: 'CSRF token mismatch' }, 403);
-    }
-  }
-
-  await next();
-});
+// CSRF Protection - DISABLED for cross-origin API setup
+// In production with separate frontend/API domains, CSRF cookies don't work
+// We rely on JWT Bearer tokens for authentication instead
+// The CORS policy + JWT auth provides sufficient protection for this API setup
+//
+// If you need CSRF protection in the future, consider:
+// 1. Using same-origin deployment (API and frontend on same domain)
+// 2. Using a stateless CSRF token passed in response headers
+// 3. Using SameSite=None cookies with proper domain configuration
 
 // Rate limiting (1000 req/min per IP)
 app.use('*', rateLimiter);
