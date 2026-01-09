@@ -18,12 +18,14 @@ const auth = new Hono();
 
 const isProduction = process.env.NODE_ENV === 'production';
 
+// For cross-origin deployments (frontend and API on different domains),
+// we need SameSite=None with Secure=true
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: isProduction,
-  // In development, use 'Lax' to allow cross-port cookies on localhost
-  // In production with same domain, use 'Strict' for maximum security
-  sameSite: isProduction ? 'Strict' as const : 'Lax' as const,
+  secure: isProduction, // Must be true for SameSite=None
+  // SameSite=None is required for cross-origin cookies
+  // This allows the cookie to be sent with cross-origin requests
+  sameSite: isProduction ? 'None' as const : 'Lax' as const,
   path: '/',
   maxAge: 60 * 60 * 24 * 7, // 7 days
 };
