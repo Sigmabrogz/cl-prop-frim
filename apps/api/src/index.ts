@@ -52,11 +52,29 @@ app.use('*', logger());
 // Security headers
 app.use('*', secureHeaders());
 
-// CORS configuration
+// CORS configuration - support multiple origins
+const allowedOrigins = [
+  'http://localhost:3000',
+  process.env.FRONTEND_URL,
+  'https://perpetual-empathy-production.up.railway.app',
+].filter(Boolean) as string[];
+
 app.use(
   '*',
   cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: (origin) => {
+      // Allow requests with no origin (like mobile apps or curl)
+      if (!origin) return 'http://localhost:3000';
+      // Check if origin is in allowed list
+      if (allowedOrigins.some(allowed => origin.includes(allowed.replace('https://', '').replace('http://', '')))) {
+        return origin;
+      }
+      // For Railway preview deployments, allow any railway.app subdomain
+      if (origin.includes('.up.railway.app')) {
+        return origin;
+      }
+      return allowedOrigins[0];
+    },
     credentials: true,
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'X-CSRF-Token'],

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState, useEffect } from "react";
 
 const footerLinks = {
   product: [
@@ -29,6 +30,12 @@ const footerLinks = {
 };
 
 export function Footer() {
+  const [year, setYear] = useState<number | null>(null);
+
+  useEffect(() => {
+    setYear(new Date().getFullYear());
+  }, []);
+
   return (
     <footer className="border-t border-border bg-background-secondary/30">
       <div className="container mx-auto px-4">
@@ -152,7 +159,7 @@ export function Footer() {
         {/* Bottom Bar */}
         <div className="py-6 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-xs text-muted-foreground display-mono">
-            {new Date().getFullYear()} PROPFIRM. ALL RIGHTS RESERVED.
+            {year ?? "2025"} PROPFIRM. ALL RIGHTS RESERVED.
           </p>
 
           <p className="text-xs text-muted-foreground max-w-lg text-center md:text-right">

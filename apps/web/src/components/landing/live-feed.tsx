@@ -10,30 +10,24 @@ interface FeedItem {
   time: string;
 }
 
-const generateFeedItems = (): FeedItem[] => {
-  const actions = [
-    { action: "Funded", amounts: ["$10K", "$25K", "$50K", "$100K"] },
-    { action: "Payout", amounts: ["$1,200", "$2,800", "$4,500", "$8,200", "$12,000"] },
-    { action: "Passed Phase 1", amounts: [] },
-    { action: "Passed Phase 2", amounts: [] },
-  ];
-
-  const initials = ["JM", "AR", "KS", "DL", "MP", "TC", "RB", "NW", "AS", "CK", "BH", "EF", "GR", "HT", "IY"];
-  const times = ["Just now", "1 min ago", "2 min ago", "5 min ago", "8 min ago", "12 min ago", "15 min ago"];
-
-  return Array.from({ length: 15 }, (_, i) => {
-    const actionType = actions[Math.floor(Math.random() * actions.length)];
-    return {
-      id: `feed-${i}`,
-      initials: initials[i % initials.length],
-      action: actionType.action,
-      amount: actionType.amounts.length > 0
-        ? actionType.amounts[Math.floor(Math.random() * actionType.amounts.length)]
-        : undefined,
-      time: times[i % times.length],
-    };
-  });
-};
+// Static seed-based items to avoid hydration mismatch
+const staticFeedItems: FeedItem[] = [
+  { id: "feed-0", initials: "JM", action: "Funded", amount: "$50K", time: "Just now" },
+  { id: "feed-1", initials: "AR", action: "Payout", amount: "$2,800", time: "1 min ago" },
+  { id: "feed-2", initials: "KS", action: "Passed Phase 1", time: "2 min ago" },
+  { id: "feed-3", initials: "DL", action: "Funded", amount: "$100K", time: "5 min ago" },
+  { id: "feed-4", initials: "MP", action: "Payout", amount: "$8,200", time: "8 min ago" },
+  { id: "feed-5", initials: "TC", action: "Passed Phase 2", time: "12 min ago" },
+  { id: "feed-6", initials: "RB", action: "Funded", amount: "$25K", time: "15 min ago" },
+  { id: "feed-7", initials: "NW", action: "Payout", amount: "$4,500", time: "Just now" },
+  { id: "feed-8", initials: "AS", action: "Passed Phase 1", time: "1 min ago" },
+  { id: "feed-9", initials: "CK", action: "Funded", amount: "$10K", time: "2 min ago" },
+  { id: "feed-10", initials: "BH", action: "Payout", amount: "$12,000", time: "5 min ago" },
+  { id: "feed-11", initials: "EF", action: "Passed Phase 2", time: "8 min ago" },
+  { id: "feed-12", initials: "GR", action: "Funded", amount: "$50K", time: "12 min ago" },
+  { id: "feed-13", initials: "HT", action: "Payout", amount: "$1,200", time: "15 min ago" },
+  { id: "feed-14", initials: "IY", action: "Passed Phase 1", time: "Just now" },
+];
 
 function FeedCard({ item }: { item: FeedItem }) {
   return (
@@ -86,7 +80,7 @@ function Facepile() {
 }
 
 export function LiveFeed() {
-  const [items] = useState<FeedItem[]>(generateFeedItems);
+  const [items] = useState<FeedItem[]>(staticFeedItems);
   const [isPaused, setIsPaused] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
